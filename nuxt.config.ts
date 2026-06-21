@@ -1,0 +1,37 @@
+// https://nuxt.com/docs/api/configuration/nuxt-config
+export default defineNuxtConfig({
+  compatibilityDate: '2025-07-15',
+  devtools: { enabled: true },
+  modules: ['@nuxtjs/tailwindcss'],
+  css: ['~/assets/css/main.css'],
+  app: {
+    head: {
+      title: 'UNA JOYA | Joalheria Artesanal',
+      htmlAttrs: {
+        lang: 'pt-BR'
+      },
+      meta: [
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1.0' },
+        { name: 'description', content: 'Una Joya - Joalheria Artesanal. Peças feitas à mão com pedras naturais.' },
+        // Open Graph / Facebook / WhatsApp
+        { property: 'og:type', content: 'website' },
+        { property: 'og:title', content: 'UNA JOYA | Joalheria Artesanal' },
+        { property: 'og:description', content: 'Una Joya - Joalheria Artesanal. Peças feitas à mão com pedras naturais.' },
+        { property: 'og:image', content: '/about_us.png' },
+        // Twitter
+        { name: 'twitter:card', content: 'summary_large_image' },
+        { name: 'twitter:title', content: 'UNA JOYA | Joalheria Artesanal' },
+        { name: 'twitter:description', content: 'Una Joya - Joalheria Artesanal. Peças feitas à mão com pedras naturais.' },
+        { name: 'twitter:image', content: '/about_us.png' }
+      ],
+      link: [
+        { rel: 'icon', type: 'image/png', href: '/about_us.png' },
+        { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+        { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
+        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;700&family=Karla:wght@400;700&display=swap' },
+        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap' }
+      ]
+    }
+  }
+})
