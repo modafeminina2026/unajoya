@@ -2,6 +2,15 @@ import type { Config } from 'tailwindcss'
 
 export default <Partial<Config>>{
   theme: {
+    screens: {
+      'sm': '640px',
+      'md': '768px',
+      'lg': '1024px',
+      'xl': '1280px',
+      '2xl': '1536px',
+      '3xl': '1920px',
+      '4xl': '2560px',
+    },
     extend: {
       colors: {
         "champagne-gold": "#D4AF37",
@@ -66,8 +75,13 @@ export default <Partial<Config>>{
         "margin-mobile": "16px",
         "unit": "8px",
         "margin-desktop": "64px",
+        "margin-desktop-xl": "120px",
         "gutter": "24px",
-        "container-max-width": "1280px"
+        "gutter-lg": "40px",
+        "container-max-width": "1280px",
+        "container-max-width-xl": "1440px",
+        "container-max-width-2xl": "1600px",
+        "container-max-width-3xl": "1920px",
       },
       fontFamily: {
         "display-lg": ["EB Garamond", "serif"],

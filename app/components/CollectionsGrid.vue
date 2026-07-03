@@ -35,18 +35,18 @@ const collections: Collection[] = [
 </script>
 
 <template>
-  <section class="py-16 bg-surface">
-    <div class="px-margin-mobile mb-8 flex flex-col items-center">
-      <h2 class="font-display-lg text-headline-lg-mobile text-primary tracking-[0.2em] mb-2 uppercase">COLEÇÕES</h2>
-      <div class="w-12 h-[2px] bg-primary"></div>
+  <section class="py-16 lg:py-24 3xl:py-32 bg-surface">
+    <div class="px-margin-mobile lg:px-margin-desktop xl:px-margin-desktop-xl 3xl:px-[160px] mb-8 lg:mb-12 3xl:mb-16 flex flex-col items-center">
+      <h2 class="font-display-lg text-headline-lg-mobile lg:text-[40px] xl:text-[48px] 3xl:text-[60px] text-primary tracking-[0.2em] mb-2 uppercase">COLEÇÕES</h2>
+      <div class="w-12 lg:w-16 h-[2px] bg-primary"></div>
     </div>
     
-    <div class="grid grid-cols-2 gap-[1px] bg-soft-stone">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-[1px] bg-soft-stone">
       <a 
         v-for="collection in collections" 
         :key="collection.name"
         :href="collection.link"
-        class="relative aspect-square group overflow-hidden bg-surface block"
+        class="relative aspect-square lg:aspect-[3/4] group overflow-hidden bg-surface block"
       >
         <div 
           class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" 
@@ -56,8 +56,8 @@ const collections: Collection[] = [
         ></div>
         <!-- overlay for readability -->
         <div class="absolute inset-0 bg-black/10 transition-opacity duration-300 group-hover:bg-black/25"></div>
-        <div class="absolute inset-0 flex items-center justify-center">
-          <span class="font-label-caps text-[14px] text-pure-white tracking-[0.3em] font-bold transition-all duration-300 group-hover:tracking-[0.35em]">
+        <div class="absolute inset-0 flex items-end justify-center pb-6 lg:pb-8 3xl:pb-12">
+          <span class="font-label-caps text-[14px] lg:text-[13px] xl:text-[14px] 3xl:text-[16px] text-pure-white tracking-[0.3em] font-bold transition-all duration-300 group-hover:tracking-[0.35em]">
             {{ collection.name }}
           </span>
         </div>
@@ -65,3 +65,4 @@ const collections: Collection[] = [
     </div>
   </section>
 </template>
+

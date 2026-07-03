@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
 interface Product {
   id: number
   name: string
@@ -7,50 +9,80 @@ interface Product {
   image: string
 }
 
-const products: Product[] = [
-  {
-    id: 1,
-    name: 'Colar keshi perolas agua doce',
-    price: 488.00,
-    installments: '6x de R$ 81,33',
-    image: 'https://lh3.googleusercontent.com/aida/AP1WRLvDq2-x30MCpcTRgKRQJDTaf15A_P7vGs32RxaCWnMXc88pl2utfO3Az4vWizC18Hip261_Fu4grr7GukWJ9IUXFR-eb-oDKuyhXCF3kmbxYVmB_Q_WdZg10KEVo_km_Ei5xBM5zxsxHYbfrI_UswNhEA5aaR_bCTi6NdcGfTd0gMV4BEgib36XSIcKBnkV-POlVeLeMiKMIDf2cgAk8oBTBWF-tLBYv_4jnyxsRuP4L7nlpkmyEjMNZ5M'
-  },
-  {
-    id: 2,
-    name: 'Colar Pingente Quartzo Marrom',
-    price: 288.00,
-    installments: '3x de R$ 96,00',
-    image: 'https://lh3.googleusercontent.com/aida/AP1WRLv32RCOxvnLt6F9GVk2xQB2SLlIZw-JJNeXrtBr-AbV3tEAsg7iBiFWAAHGQ2MgJpZjyg7UWvydCDyf6DzWZu1oi6ssAzBHor5h-AbIYfVyAHgaobl_bau3CYboabcP1ETLbyM_y_wsCC698GjwAnLa-OlFeJaeCim5QP0kbo8ebTNhvnCose7vqxvN_giMcm0wZ9pJWC5L_eiXK8Lh050yYOvUDqIdV_lqSO51l-QRvNlMLqGOgcTfON8'
-  },
-  {
-    id: 3,
-    name: 'Colar Cascalho Vermelho telha e Citrino',
-    price: 298.00,
-    installments: '3x de R$ 99,33',
-    image: 'https://lh3.googleusercontent.com/aida/AP1WRLtRaI7-XCwcPIFOIJEEydB2nrJkln0BCRn-q57Ofm5kct-vuvbHu_L72mERuHcBb6cHXU2r2gy5sDyokKdOWHVzm8tBsaojmLECOCSPy3q5fmSNgE6FErZVBdDxJnIDSIbYPq7se9EcrbAAS2-NzdJd8giSUBZyivsih_3452Fprmq75gsiurV_QQgW1YZ7TDI7ul4-uTcxwyeAeoSClwI1SqrcEjqvnPYBc_U2-ayYQ-MlmDheh42nMsOt'
-  },
-  {
-    id: 4,
-    name: 'Colar em Pedras Verde Esmeralda',
-    price: 488.00,
-    installments: '6x de R$ 81,33',
-    image: 'https://lh3.googleusercontent.com/aida/AP1WRLtIEgtXN9RYzGNtwsCGKHwQHJlhbOoiV1_dQb5HTX1QdYGZVmjQLMfYvK0IlV-yus2Wu2XshtQP8x5QsLkJgDk6S3oMLPi-uZG5vYa2IQ4Fzf0bI2KgTEux91qery7Br4UBnWmn0Nz6WU4FrdgM2Aod2LjsXQZAUelCitUsAugNua5IjtJtS2kSL3dvKyD73C-NdunIryj_9xY8SYfrzGJdB0Jg6yc-dMgH8q3h1dHpsJrmuT7y6r0aAzTq'
-  }
-]
+const { client } = useSupabase()
+const products = ref<Product[]>([])
+const loading = ref(true)
+
+const { addToCart } = useCart()
 
 const formatCurrency = (val: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 }
+
+const fetchProducts = async () => {
+  loading.value = true
+  try {
+    const { data, error } = await client
+      .from('products')
+      .select('*')
+      .order('id', { ascending: true })
+    
+    if (error) throw error
+    
+    products.value = (data || []).map(p => {
+      // Calcula as parcelas dinamicamente
+      const isExpensive = p.price >= 400
+      const instCount = isExpensive ? 6 : 3
+      const instPrice = (p.price / instCount).toFixed(2).replace('.', ',')
+      
+      return {
+        id: p.id,
+        name: p.name,
+        price: Number(p.price),
+        installments: `${instCount}x de R$ ${instPrice} sem juros`,
+        image: p.image
+      }
+    })
+  } catch (err) {
+    console.error('Erro ao carregar produtos:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleBuy = (product: Product) => {
+  addToCart({
+    name: product.name,
+    price: product.price,
+    image: product.image
+  })
+}
+
+onMounted(() => {
+  fetchProducts()
+})
 </script>
 
 <template>
-  <section class="py-16 px-margin-mobile bg-surface-container-low border-b border-soft-stone">
-    <div class="mb-12 flex flex-col items-center">
-      <h2 class="font-display-lg text-headline-lg-mobile text-primary tracking-[0.2em] mb-2 uppercase">MAIS VENDIDOS</h2>
-      <div class="w-12 h-[2px] bg-primary"></div>
+  <section class="py-16 lg:py-24 3xl:py-32 px-margin-mobile lg:px-margin-desktop xl:px-margin-desktop-xl 3xl:px-[160px] bg-surface-container-low border-b border-soft-stone">
+    <div class="mb-12 lg:mb-16 3xl:mb-20 flex flex-col items-center">
+      <h2 class="font-display-lg text-headline-lg-mobile lg:text-[40px] xl:text-[48px] 3xl:text-[60px] text-primary tracking-[0.2em] mb-2 uppercase">MAIS VENDIDOS</h2>
+      <div class="w-12 lg:w-16 h-[2px] bg-primary"></div>
     </div>
     
-    <div class="grid grid-cols-2 gap-x-4 gap-y-8">
+    <!-- Loading State Skeleton -->
+    <div v-if="loading" class="grid grid-cols-2 lg:grid-cols-4 gap-x-4 lg:gap-x-6 xl:gap-x-8 3xl:gap-x-10 gap-y-8 lg:gap-y-12">
+      <div v-for="i in 4" :key="i" class="animate-pulse flex flex-col">
+        <div class="aspect-[3/4] mb-4 bg-soft-stone rounded-sm"></div>
+        <div class="h-4 bg-soft-stone w-3/4 mb-3 rounded"></div>
+        <div class="h-4 bg-soft-stone w-1/4 mb-2 rounded"></div>
+        <div class="h-3 bg-soft-stone w-1/2 mb-5 rounded"></div>
+        <div class="h-12 bg-soft-stone w-full rounded-sm"></div>
+      </div>
+    </div>
+
+    <!-- Product Grid -->
+    <div v-else class="grid grid-cols-2 lg:grid-cols-4 gap-x-4 lg:gap-x-6 xl:gap-x-8 3xl:gap-x-10 gap-y-8 lg:gap-y-12">
       <div 
         v-for="product in products" 
         :key="product.id"
@@ -68,28 +100,29 @@ const formatCurrency = (val: number) => {
         </div>
         
         <!-- Product Title -->
-        <h4 class="font-body-md text-[13px] text-primary mb-2 line-clamp-2 min-h-[40px] leading-snug group-hover:text-champagne-gold transition-colors duration-300">
+        <h4 class="font-body-md text-[13px] lg:text-[14px] 3xl:text-[16px] text-primary mb-2 line-clamp-2 min-h-[40px] leading-snug group-hover:text-champagne-gold transition-colors duration-300">
           {{ product.name }}
         </h4>
         
         <!-- Product Price -->
-        <p class="font-bold text-primary mb-1">
+        <p class="font-bold text-primary mb-1 lg:text-[17px] 3xl:text-[20px]">
           {{ formatCurrency(product.price) }}
         </p>
         
         <!-- Installments -->
-        <p class="text-[10px] text-secondary tracking-widest uppercase mb-4 font-semibold">
+        <p class="text-[10px] lg:text-[11px] 3xl:text-[13px] text-secondary tracking-widest uppercase mb-4 font-semibold">
           {{ product.installments }}
         </p>
         
         <!-- Buy Button -->
-        <NuxtLink 
-          to="/checkout" 
-          class="w-full py-3 bg-soft-stone font-label-caps text-[10px] text-primary hover:bg-primary hover:text-pure-white transition-colors duration-300 tracking-widest uppercase active:scale-95 block text-center"
+        <button 
+          @click="handleBuy(product)"
+          class="w-full py-3 lg:py-4 3xl:py-5 bg-soft-stone font-label-caps text-[10px] lg:text-[11px] 3xl:text-[13px] text-primary hover:bg-primary hover:text-pure-white transition-colors duration-300 tracking-widest uppercase active:scale-95 block text-center"
         >
           COMPRAR
-        </NuxtLink>
+        </button>
       </div>
     </div>
   </section>
 </template>
+

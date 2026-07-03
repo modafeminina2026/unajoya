@@ -6,8 +6,8 @@
     <!-- Slide-over Drawer Navigation Menu -->
     <AppDrawer />
 
-    <!-- Main Container capped at 780px to preserve mobile editorial design scale -->
-    <main class="pt-16 pb-14 md:pb-0 max-w-[780px] mx-auto bg-surface shadow-xl relative min-h-screen">
+    <!-- Main Container: mobile = capped 780px, desktop = full width with max-width -->
+    <main class="pt-16 lg:pt-[116px] xl:pt-[126px] 3xl:pt-[134px] pb-14 md:pb-0 lg:pb-0 max-w-[780px] lg:max-w-none mx-auto bg-surface shadow-xl relative min-h-screen">
       <!-- Hero Key-Visual -->
       <HeroBanner />
 
@@ -34,3 +34,4 @@
     <BottomNavigation />
   </div>
 </template>
+
