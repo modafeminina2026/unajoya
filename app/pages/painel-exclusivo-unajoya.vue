@@ -292,7 +292,7 @@ onMounted(() => {
       </aside>
 
       <!-- Main Content Canvas -->
-      <main class="flex-1 md:ml-72 p-margin-mobile md:p-16">
+      <main class="flex-1 min-w-0 md:ml-72 p-margin-mobile md:p-16">
         <!-- Header Section -->
         <div class="mb-12 flex flex-col lg:flex-row lg:items-end justify-between gap-6 fade-in">
           <div>
@@ -410,11 +410,11 @@ onMounted(() => {
                 <p class="text-xs text-secondary leading-relaxed">
                   Nota: Para manter a exclusividade das peças, os produtos serão **removidos automaticamente** da vitrine pública após o período selecionado.
                 </p>
-                <div class="flex gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <label 
                     v-for="days in [10, 15, 20]" 
                     :key="days" 
-                    class="flex-1 cursor-pointer"
+                    class="cursor-pointer"
                   >
                     <input 
                       v-model="form.duration"
