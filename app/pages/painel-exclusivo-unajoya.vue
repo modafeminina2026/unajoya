@@ -20,6 +20,7 @@ interface AdminProduct {
 const { client } = useSupabase()
 const products = ref<AdminProduct[]>([])
 const loading = ref(true)
+const isSidebarOpen = ref(false)
 
 // Mock de imagens para facilitar testes rápidos
 const mockImages = [
@@ -227,17 +228,39 @@ onMounted(() => {
   <div class="bg-surface font-body-md text-on-surface overflow-x-hidden min-h-screen">
     <!-- Top Bar (Mobile Only) -->
     <header class="md:hidden fixed top-0 left-0 w-full z-50 flex justify-between items-center px-margin-mobile h-16 bg-surface border-b border-soft-stone">
-      <NuxtLink to="/" class="text-primary hover:opacity-75 flex items-center justify-center p-2">
-        <span class="material-symbols-outlined text-2xl">arrow_back</span>
-      </NuxtLink>
+      <button @click="isSidebarOpen = !isSidebarOpen" class="text-primary hover:opacity-75 flex items-center justify-center p-2" aria-label="Abrir menu">
+        <span class="material-symbols-outlined text-2xl">menu</span>
+      </button>
       <h1 class="font-display-lg text-[20px] tracking-widest text-primary font-bold">UNA JOYA</h1>
-      <div class="w-10"></div>
+      <NuxtLink to="/" class="text-primary hover:opacity-75 flex items-center justify-center p-2" aria-label="Voltar para a loja">
+        <span class="material-symbols-outlined text-2xl">home</span>
+      </NuxtLink>
     </header>
 
     <div class="flex min-h-screen pt-16 md:pt-0">
+      <!-- Sidebar Overlay (Mobile Only) -->
+      <div 
+        v-if="isSidebarOpen" 
+        @click="isSidebarOpen = false" 
+        class="fixed inset-0 bg-black/40 z-40 md:hidden"
+      ></div>
+
       <!-- Navigation Drawer (Sidebar) -->
-      <aside class="fixed inset-y-0 left-0 z-50 w-64 md:w-72 bg-surface border-r border-soft-stone flex flex-col justify-between" id="sidebar">
-        <div class="flex flex-col h-full px-8 pt-12 pb-8">
+      <aside 
+        class="fixed inset-y-0 left-0 z-50 w-64 md:w-72 bg-surface border-r border-soft-stone flex flex-col justify-between transition-transform duration-300 md:translate-x-0"
+        :class="isSidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+        id="sidebar"
+      >
+        <div class="flex flex-col h-full px-8 pt-12 pb-8 relative">
+          <!-- Close Button (Mobile Only) -->
+          <button 
+            @click="isSidebarOpen = false" 
+            class="absolute top-4 right-4 text-primary hover:opacity-75 md:hidden p-2 flex items-center justify-center"
+            aria-label="Fechar menu"
+          >
+            <span class="material-symbols-outlined text-2xl">close</span>
+          </button>
+
           <div class="mb-12">
             <NuxtLink to="/" class="font-display-lg text-headline-md tracking-[0.2em] text-primary hover:text-champagne-gold font-bold">UNA JOYA</NuxtLink>
             <p class="font-label-caps text-[10px] text-secondary mt-2 opacity-60">PAINEL ADMINISTRATIVO</p>
@@ -245,22 +268,22 @@ onMounted(() => {
           
           <nav class="flex-1 space-y-2">
             <p class="font-label-caps text-secondary mb-4 text-[11px] tracking-widest">GERENCIAR BOUTIQUE</p>
-            <a class="flex items-center gap-4 text-primary font-bold border-b border-primary py-4 transition-all" href="#">
+            <a class="flex items-center gap-4 text-primary font-bold border-b border-primary py-4 transition-all" href="#" @click="isSidebarOpen = false">
               <span class="material-symbols-outlined">diamond</span>
               <span class="font-label-caps">PRODUTOS</span>
             </a>
-            <NuxtLink to="/" class="flex items-center gap-4 text-secondary hover:text-primary py-4 transition-all group">
+            <NuxtLink to="/" class="flex items-center gap-4 text-secondary hover:text-primary py-4 transition-all group" @click="isSidebarOpen = false">
               <span class="material-symbols-outlined group-hover:scale-110">home</span>
               <span class="font-label-caps">IR PARA A LOJA</span>
             </NuxtLink>
-            <NuxtLink to="/checkout" class="flex items-center gap-4 text-secondary hover:text-primary py-4 transition-all group">
+            <NuxtLink to="/checkout" class="flex items-center gap-4 text-secondary hover:text-primary py-4 transition-all group" @click="isSidebarOpen = false">
               <span class="material-symbols-outlined group-hover:scale-110">shopping_bag</span>
               <span class="font-label-caps">SACOLA/CHECKOUT</span>
             </NuxtLink>
           </nav>
           
           <div class="mt-auto pt-8 border-t border-soft-stone">
-            <NuxtLink to="/" class="flex items-center gap-4 text-error opacity-70 hover:opacity-100 transition-opacity">
+            <NuxtLink to="/" class="flex items-center gap-4 text-error opacity-70 hover:opacity-100 transition-opacity" @click="isSidebarOpen = false">
               <span class="material-symbols-outlined">logout</span>
               <span class="font-label-caps">VOLTAR</span>
             </NuxtLink>
@@ -278,17 +301,17 @@ onMounted(() => {
               Curadoria da experiência 'Una Joya'. Adicione novas peças artesanais exclusivas e gerencie seu tempo de exibição na vitrine pública.
             </p>
           </div>
-          <div class="flex gap-4">
+          <div class="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
             <button 
               v-if="isEditing" 
               @click="clearForm"
-              class="border border-soft-stone px-8 py-4 font-label-caps text-secondary hover:bg-soft-stone/20 active:scale-95 transition-all text-xs"
+              class="w-full sm:w-auto border border-soft-stone px-8 py-4 font-label-caps text-secondary hover:bg-soft-stone/20 active:scale-95 transition-all text-xs text-center"
             >
               CANCELAR EDIÇÃO
             </button>
             <button 
               @click="handlePublish" 
-              class="bg-primary text-pure-white px-8 py-4 font-label-caps hover:bg-deep-onyx active:scale-95 transition-all text-xs"
+              class="w-full sm:w-auto bg-primary text-pure-white px-8 py-4 font-label-caps hover:bg-deep-onyx active:scale-95 transition-all text-xs text-center"
             >
               {{ isEditing ? 'SALVAR ALTERAÇÕES' : 'PUBLICAR PEÇA' }}
             </button>
@@ -298,7 +321,7 @@ onMounted(() => {
         <!-- Dashboard Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
           <!-- New Product Form -->
-          <section class="lg:col-span-7 bg-surface-container-low p-8 md:p-12 border border-soft-stone fade-in shadow-sm" style="animation-delay: 0.1s">
+          <section class="lg:col-span-7 bg-surface-container-low p-6 sm:p-8 md:p-12 border border-soft-stone fade-in shadow-sm" style="animation-delay: 0.1s">
             <div class="flex items-center gap-3 mb-10 border-b border-soft-stone pb-4">
               <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">
                 {{ isEditing ? 'edit_note' : 'add_circle' }}
@@ -425,7 +448,7 @@ onMounted(() => {
           <!-- Visual Assets & Preview -->
           <section class="lg:col-span-5 space-y-12 fade-in" style="animation-delay: 0.2s">
             <!-- Media Upload Card -->
-            <div class="bg-surface-container-low p-8 border border-soft-stone">
+            <div class="bg-surface-container-low p-6 sm:p-8 border border-soft-stone">
               <div class="flex items-center justify-between mb-6">
                 <h3 class="font-label-caps text-[11px] text-primary tracking-widest font-bold">FOTOGRAFIA DA JOIA</h3>
                 <button 
@@ -494,7 +517,7 @@ onMounted(() => {
                   alt="Preview da joia"
                 />
               </div>
-              <div class="p-8 text-center">
+              <div class="p-6 sm:p-8 text-center">
                 <p class="font-label-caps text-secondary text-[10px] mb-2 tracking-widest font-semibold">PREVIEW CATEGORIA</p>
                 <h4 class="font-headline-md text-primary text-xl mb-4 italic">
                   {{ form.name || 'Nome da Peça Exclusiva' }}
@@ -529,7 +552,7 @@ onMounted(() => {
           </div>
           
           <div class="overflow-x-auto bg-surface border border-soft-stone rounded-sm">
-            <table class="w-full border-collapse">
+            <table class="w-full border-collapse min-w-[650px]">
               <thead>
                 <tr class="text-left border-b border-soft-stone bg-surface-container-low">
                   <th class="py-4 px-6 font-label-caps text-[10px] text-secondary tracking-widest font-bold">JOIA / PRODUTO</th>
