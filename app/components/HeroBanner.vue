@@ -91,7 +91,7 @@ const startAutoplay = () => {
   stopAutoplay() // Evita timers duplicados
   timer = setInterval(() => {
     nextSlide()
-  }, 3000) // Transição a cada 3 segundos
+  }, 4000) // Transição a cada 4 segundos
 }
 
 const stopAutoplay = () => {

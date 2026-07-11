@@ -150,7 +150,7 @@ onMounted(() => {
 }
 
 .photo-marquee-track {
-  animation: photo-scroll 22s linear infinite;
+  animation: photo-scroll 50s linear infinite;
   will-change: transform;
 }
 
