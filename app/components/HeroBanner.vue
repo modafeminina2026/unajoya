@@ -44,6 +44,32 @@ const fallbackSlides: HeroSlide[] = [
 const slides = ref<HeroSlide[]>([])
 const currentSlide = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
+const isTouchDevice = ref(false)
+
+// Suporte a gestos de deslizar (swipe) em celular
+const touchStartX = ref(0)
+const touchEndX = ref(0)
+
+const handleTouchStart = (e: TouchEvent) => {
+  touchStartX.value = e.changedTouches[0].screenX
+}
+
+const handleTouchEnd = (e: TouchEvent) => {
+  touchEndX.value = e.changedTouches[0].screenX
+  handleSwipe()
+}
+
+const handleSwipe = () => {
+  const diff = touchStartX.value - touchEndX.value
+  const threshold = 50 // pixels mínimos para contar como deslize
+  if (Math.abs(diff) > threshold) {
+    if (diff > 0) {
+      nextSlide() // deslizar para a esquerda -> próximo
+    } else {
+      prevSlide() // deslizar para a direita -> anterior
+    }
+  }
+}
 
 const fetchSlides = async () => {
   try {
@@ -62,22 +88,26 @@ const fetchSlides = async () => {
 }
 
 const startAutoplay = () => {
+  stopAutoplay() // Evita timers duplicados
   timer = setInterval(() => {
     nextSlide()
-  }, 6000)
+  }, 3000) // Transição a cada 3 segundos
 }
 
 const stopAutoplay = () => {
   if (timer) {
     clearInterval(timer)
+    timer = null
   }
 }
 
 const nextSlide = () => {
+  if (slides.value.length === 0) return
   currentSlide.value = (currentSlide.value + 1) % slides.value.length
 }
 
 const prevSlide = () => {
+  if (slides.value.length === 0) return
   currentSlide.value = (currentSlide.value - 1 + slides.value.length) % slides.value.length
 }
 
@@ -86,6 +116,8 @@ const setSlide = (idx: number) => {
 }
 
 onMounted(async () => {
+  // Detecta se é dispositivo com suporte a toque
+  isTouchDevice.value = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0)
   await fetchSlides()
   startAutoplay()
 })
@@ -98,8 +130,10 @@ onUnmounted(() => {
 <template>
   <section 
     class="relative h-[80vh] lg:h-[90vh] 3xl:h-screen w-full overflow-hidden bg-black"
-    @mouseenter="stopAutoplay"
-    @mouseleave="startAutoplay"
+    @mouseenter="!isTouchDevice && stopAutoplay()"
+    @mouseleave="!isTouchDevice && startAutoplay()"
+    @touchstart="handleTouchStart"
+    @touchend="handleTouchEnd"
   >
     <!-- Slides -->
     <div 
