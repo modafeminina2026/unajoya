@@ -1,25 +1,65 @@
 <script setup lang="ts">
-const slides = [
+import { ref, onMounted, onUnmounted } from 'vue'
+
+interface HeroSlide {
+  id: number
+  sort_order: number
+  image: string
+  subtitle: string
+  title: string
+  btn1: string
+  btn2: string
+  align: string
+  active: boolean
+}
+
+const { client } = useSupabase()
+
+// Fallback estático caso o banco ainda não tenha a tabela
+const fallbackSlides: HeroSlide[] = [
   {
+    id: 1,
+    sort_order: 0,
     image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBbxECBrR28hV_p-R6hNN4nYcynHGmLBNlbLkiZclI6owxv175BzNBmaNqtnC7nUtn6GaT9vfOaqC0IcOoGK8j1QixUBW1UkdaQUydQ9lGOOqGIheFevA6T6yMkyDANPNu9nUuXXYX-JBCHC-1nTjBV3OuYRWQ8ZfBfekcc55VngFuJ2jqGQ2EPp7lKfXh0DxJ7PN35ipi1fAIb-iH4LP2jSyEYXBUY5kME0pgkZKJ0xVq_jl60r70DepR4P_bkljDsBTqVry-lkkVV',
     subtitle: 'COLEÇÃO 2026',
     title: 'A ENERGIA DA PEDRA<br>FEITA PARA VESTIR',
     btn1: 'VER COLEÇÃO',
     btn2: 'SOBRE NÓS',
-    align: 'text-center lg:text-left items-center lg:items-start'
+    align: 'text-center lg:text-left items-center lg:items-start',
+    active: true
   },
   {
+    id: 2,
+    sort_order: 1,
     image: '/about_us.png',
     subtitle: 'FEITO À MÃO',
     title: 'LAPIDADO COM ALMA<br>E INTENÇÃO',
     btn1: 'DESCUBRA',
     btn2: 'ATELIÊ',
-    align: 'text-center lg:text-right items-center lg:items-end'
+    align: 'text-center lg:text-right items-center lg:items-end',
+    active: true
   }
 ]
 
+const slides = ref<HeroSlide[]>([])
 const currentSlide = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
+
+const fetchSlides = async () => {
+  try {
+    const { data, error } = await client
+      .from('hero_slides')
+      .select('*')
+      .eq('active', true)
+      .order('sort_order', { ascending: true })
+
+    if (error) throw error
+    slides.value = data && data.length > 0 ? data : fallbackSlides
+  } catch {
+    // Tabela pode não existir ainda, usa o fallback
+    slides.value = fallbackSlides
+  }
+}
 
 const startAutoplay = () => {
   timer = setInterval(() => {
@@ -34,18 +74,19 @@ const stopAutoplay = () => {
 }
 
 const nextSlide = () => {
-  currentSlide.value = (currentSlide.value + 1) % slides.length
+  currentSlide.value = (currentSlide.value + 1) % slides.value.length
 }
 
 const prevSlide = () => {
-  currentSlide.value = (currentSlide.value - 1 + slides.length) % slides.length
+  currentSlide.value = (currentSlide.value - 1 + slides.value.length) % slides.value.length
 }
 
 const setSlide = (idx: number) => {
   currentSlide.value = idx
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await fetchSlides()
   startAutoplay()
 })
 
@@ -63,7 +104,7 @@ onUnmounted(() => {
     <!-- Slides -->
     <div 
       v-for="(slide, idx) in slides" 
-      :key="idx"
+      :key="slide.id"
       class="absolute inset-0 transition-opacity duration-1000 ease-in-out"
       :class="currentSlide === idx ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'"
     >
@@ -127,8 +168,8 @@ onUnmounted(() => {
     <!-- Dot Indicators -->
     <div class="absolute bottom-6 lg:bottom-10 left-1/2 -translate-x-1/2 z-20 flex gap-3">
       <button 
-        v-for="(_, idx) in slides" 
-        :key="idx"
+        v-for="(slide, idx) in slides" 
+        :key="slide.id"
         class="w-3 h-3 rounded-full border border-pure-white transition-all duration-300"
         :class="currentSlide === idx ? 'bg-pure-white scale-110' : 'bg-transparent hover:bg-white/20'"
         @click="setSlide(idx)"
@@ -148,4 +189,3 @@ onUnmounted(() => {
   animation: fadeIn 1.2s ease-out forwards;
 }
 </style>
-

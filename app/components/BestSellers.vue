@@ -29,20 +29,31 @@ const fetchProducts = async () => {
     
     if (error) throw error
     
-    products.value = (data || []).map(p => {
-      // Calcula as parcelas dinamicamente
-      const isExpensive = p.price >= 400
-      const instCount = isExpensive ? 6 : 3
-      const instPrice = (p.price / instCount).toFixed(2).replace('.', ',')
-      
-      return {
-        id: p.id,
-        name: p.name,
-        price: Number(p.price),
-        installments: `${instCount}x de R$ ${instPrice} sem juros`,
-        image: p.image
-      }
-    })
+    products.value = (data || [])
+      .filter(p => {
+        // Filtra para remover produtos expirados da vitrine pública
+        const createdAt = new Date(p.created_at)
+        const durationDays = Number(p.duration || 15)
+        const diffTime = (createdAt.getTime() + durationDays * 24 * 60 * 60 * 1000) - Date.now()
+        return diffTime > 0 // Retorna true se ainda estiver no período de exibição
+      })
+      .map(p => {
+        const price = Number(p.price) || 0
+        // Calcula as parcelas dinamicamente
+        const isExpensive = price >= 400
+        const instCount = isExpensive ? 6 : 3
+        const instPrice = price > 0
+          ? (price / instCount).toFixed(2).replace('.', ',')
+          : '0,00'
+
+        return {
+          id: p.id,
+          name: p.name,
+          price,
+          installments: price > 0 ? `${instCount}x de R$ ${instPrice} sem juros` : '',
+          image: p.image
+        }
+      })
   } catch (err) {
     console.error('Erro ao carregar produtos:', err)
   } finally {
@@ -106,13 +117,14 @@ onMounted(() => {
         
         <!-- Product Price -->
         <p class="font-bold text-primary mb-1 lg:text-[17px] 3xl:text-[20px]">
-          {{ formatCurrency(product.price) }}
+          {{ product.price > 0 ? formatCurrency(product.price) : '—' }}
         </p>
         
         <!-- Installments -->
-        <p class="text-[10px] lg:text-[11px] 3xl:text-[13px] text-secondary tracking-widest uppercase mb-4 font-semibold">
+        <p v-if="product.installments" class="text-[10px] lg:text-[11px] 3xl:text-[13px] text-secondary tracking-widest uppercase mb-4 font-semibold">
           {{ product.installments }}
         </p>
+        <div v-else class="mb-4 h-4"></div>
         
         <!-- Buy Button -->
         <button 

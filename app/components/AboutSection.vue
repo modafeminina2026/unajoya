@@ -1,3 +1,40 @@
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
+const { client } = useSupabase()
+
+const aboutData = ref({
+  title: 'Uma jornada de afeto lapidada pelo tempo.',
+  content: 'A Una Joya nasceu do meu desejo profundo de traduzir mais de uma década de experiência no ramo da joalheria em algo que tivesse a minha própria alma. Depois de mais de 10 anos dedicados aos bastidores e ao mercado das joias, decidi que era hora de dar forma ao meu próprio sonho.\n\nUnindo o conhecimento técnico que acumulei ao longo dessa trajetória ao amor por transformar metais e pedras naturais em poesia, criei este espaço. Aqui, cada peça é feita à mão, com calma, afeto e intenção — como um pequeno tesouro esculpido para acompanhar os seus dias. Escolha a joia que vai ressignificar o seu momento.',
+  image: '/about_us.png'
+})
+
+const fetchAboutData = async () => {
+  try {
+    const { data, error } = await client
+      .from('about_us')
+      .select('title, content, image')
+      .eq('id', 1)
+      .single()
+    
+    if (error) throw error
+    if (data) {
+      aboutData.value = {
+        title: data.title,
+        content: data.content,
+        image: data.image
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao carregar dados do Sobre Nós:', err)
+  }
+}
+
+onMounted(() => {
+  fetchAboutData()
+})
+</script>
+
 <template>
   <section class="py-16 lg:py-0 bg-surface-container border-b border-soft-stone overflow-hidden">
     <!-- Mobile layout: stacked -->
@@ -6,7 +43,7 @@
         <img 
           alt="Fundadoras da Una Joya - Cristina e Danielle" 
           class="w-full h-full object-cover grayscale-[0.2] hover:grayscale-0 transition-all duration-700 ease-in-out hover:scale-105" 
-          src="/about_us.png"
+          :src="aboutData.image"
           loading="lazy"
         >
       </div>
@@ -14,12 +51,10 @@
         <div class="mb-8">
           <h2 class="font-label-caps text-label-caps text-primary tracking-[0.4em] mb-4 font-bold">SOBRE NÓS</h2>
           <h3 class="font-display-lg text-headline-lg-mobile text-primary leading-tight mb-6">
-            Uma jornada de afeto lapidada pelo tempo.
+            {{ aboutData.title }}
           </h3>
-          <p class="font-body-md text-on-surface-variant leading-relaxed mb-10 text-secondary">
-            A Una Joya nasceu do meu desejo profundo de traduzir mais de uma década de experiência no ramo da joalheria em algo que tivesse a minha própria alma. Depois de mais de 10 anos dedicados aos bastidores e ao mercado das joias, decidi que era hora de dar forma ao meu próprio sonho.
-            <br><br>
-            Unindo o conhecimento técnico que acumulei ao longo dessa trajetória ao amor por transformar metais e pedras naturais em poesia, criei este espaço. Aqui, cada peça é feita à mão, com calma, afeto e intenção — como um pequeno tesouro esculpido para acompanhar os seus dias. Escolha a joia que vai ressignificar o seu momento.
+          <p class="font-body-md text-on-surface-variant leading-relaxed mb-10 text-secondary whitespace-pre-line">
+            {{ aboutData.content }}
           </p>
           <a 
             href="#" 
@@ -38,7 +73,7 @@
         <img 
           alt="Fundadoras da Una Joya - Cristina e Danielle" 
           class="w-full h-full object-cover grayscale-[0.2] hover:grayscale-0 transition-all duration-700 ease-in-out hover:scale-105" 
-          src="/about_us.png"
+          :src="aboutData.image"
           loading="lazy"
         >
       </div>
@@ -47,12 +82,10 @@
         <div class="max-w-xl xl:max-w-2xl 3xl:max-w-3xl">
           <h2 class="font-label-caps text-label-caps xl:text-[13px] 3xl:text-[15px] text-primary tracking-[0.4em] mb-6 font-bold">SOBRE NÓS</h2>
           <h3 class="font-display-lg text-[36px] xl:text-[44px] 2xl:text-[52px] 3xl:text-[64px] text-primary leading-tight mb-8">
-            Uma jornada de afeto lapidada pelo tempo.
+            {{ aboutData.title }}
           </h3>
-          <p class="font-body-md text-[15px] xl:text-[16px] 3xl:text-[18px] text-on-surface-variant leading-relaxed mb-12 text-secondary">
-            A Una Joya nasceu do meu desejo profundo de traduzir mais de uma década de experiência no ramo da joalheria em algo que tivesse a minha própria alma. Depois de mais de 10 anos dedicados aos bastidores e ao mercado das joias, decidi que era hora de dar forma ao meu próprio sonho.
-            <br><br>
-            Unindo o conhecimento técnico que acumulei ao longo dessa trajetória ao amor por transformar metais e pedras naturais em poesia, criei este espaço. Aqui, cada peça é feita à mão, com calma, afeto e intenção — como um pequeno tesouro esculpido para acompanhar os seus dias.
+          <p class="font-body-md text-[15px] xl:text-[16px] 3xl:text-[18px] text-on-surface-variant leading-relaxed mb-12 text-secondary whitespace-pre-line">
+            {{ aboutData.content }}
           </p>
           <a 
             href="#" 
@@ -65,4 +98,5 @@
     </div>
   </section>
 </template>
+
 

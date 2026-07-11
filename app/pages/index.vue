@@ -11,6 +11,9 @@
       <!-- Hero Key-Visual -->
       <HeroBanner />
 
+      <!-- Fast Photo Marquee Strip (Editorial Lookbook) -->
+      <PhotoStrip />
+
       <!-- Trust Badges Grid -->
       <TrustBadges />
 

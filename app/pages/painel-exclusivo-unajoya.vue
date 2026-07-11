@@ -43,9 +43,10 @@ const form = ref({
 
 const isEditing = computed(() => form.value.id !== null)
 
-// Upload de imagem simulado (permite digitar ou escolher uma das mockadas)
+// Upload de imagem simulado (permite digitar ou escolher uma das mockadas) e upload real no Cloudflare R2
 const imageInputUrl = ref('')
 const showUrlInput = ref(false)
+const uploading = ref(false)
 
 const selectMockImage = (url: string) => {
   form.value.image = url
@@ -59,6 +60,37 @@ const applyCustomUrl = () => {
     imageInputUrl.value = ''
   }
 }
+
+const handleFileUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  uploading.value = true
+  const formData = new FormData()
+  formData.append('file', file)
+
+  try {
+    const response = await $fetch<{ success: boolean; url: string }>('/api/upload', {
+      method: 'POST',
+      body: formData
+    })
+
+    if (response.success && response.url) {
+      form.value.image = response.url
+      showUrlInput.value = false
+    } else {
+      alert('Falha ao fazer upload da imagem.')
+    }
+  } catch (err: any) {
+    console.error('Erro no upload:', err)
+    alert(`Erro ao enviar imagem: ${err.data?.message || err.message || 'Erro desconhecido'}`)
+  } finally {
+    uploading.value = false
+    target.value = ''
+  }
+}
+
 
 // Buscar produtos do banco
 const fetchProducts = async () => {
@@ -219,8 +251,423 @@ const formatCurrency = (val: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 }
 
+// Controle de abas do painel
+const currentTab = ref('products') // 'products', 'about', 'carousel' ou 'lookbook'
+
+// Estado do formulário do Sobre Nós
+const aboutForm = ref({
+  title: '',
+  content: '',
+  image: ''
+})
+const loadingAbout = ref(false)
+const uploadingAboutImage = ref(false)
+
+const fetchAboutAdmin = async () => {
+  try {
+    const { data, error } = await client
+      .from('about_us')
+      .select('*')
+      .eq('id', 1)
+      .single()
+    
+    if (error) throw error
+    if (data) {
+      aboutForm.value = {
+        title: data.title,
+        content: data.content,
+        image: data.image
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao buscar dados do Sobre Nós:', err)
+  }
+}
+
+const handleSaveAbout = async () => {
+  if (!aboutForm.value.title.trim() || !aboutForm.value.content.trim()) {
+    alert('Por favor, preencha o título e o conteúdo.')
+    return
+  }
+
+  loadingAbout.value = true
+  try {
+    const { error } = await client
+      .from('about_us')
+      .update({
+        title: aboutForm.value.title,
+        content: aboutForm.value.content,
+        image: aboutForm.value.image
+      })
+      .eq('id', 1)
+
+    if (error) throw error
+    alert('Sobre Nós atualizado com sucesso!')
+  } catch (err) {
+    console.error('Erro ao salvar Sobre Nós:', err)
+    alert('Erro ao salvar as alterações do Sobre Nós no banco de dados.')
+  } finally {
+    loadingAbout.value = false
+  }
+}
+
+const handleAboutImageUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  uploadingAboutImage.value = true
+  const formData = new FormData()
+  formData.append('file', file)
+
+  try {
+    const response = await $fetch<{ success: boolean; url: string }>('/api/upload', {
+      method: 'POST',
+      body: formData
+    })
+
+    if (response.success && response.url) {
+      aboutForm.value.image = response.url
+    } else {
+      alert('Falha ao fazer upload da imagem.')
+    }
+  } catch (err: any) {
+    console.error('Erro no upload da imagem do Sobre Nós:', err)
+    alert(`Erro ao enviar imagem: ${err.data?.message || err.message || 'Erro desconhecido'}`)
+  } finally {
+    uploadingAboutImage.value = false
+    target.value = ''
+  }
+}
+
+// ============================================================
+// ABA CARROSSEL (hero_slides)
+// ============================================================
+interface HeroSlide {
+  id: number
+  sort_order: number
+  image: string
+  subtitle: string
+  title: string
+  btn1: string
+  btn2: string
+  align: string
+  active: boolean
+}
+
+const slides = ref<HeroSlide[]>([])
+const loadingSlides = ref(false)
+const uploadingSlideImage = ref(false)
+
+const slideForm = ref({
+  id: null as number | null,
+  sort_order: 0,
+  image: mockImages[0],
+  subtitle: '',
+  title: '',
+  btn1: 'VER COLEÇÃO',
+  btn2: 'SOBRE NÓS',
+  align: 'text-center lg:text-left items-center lg:items-start',
+  active: true
+})
+
+const isEditingSlide = computed(() => slideForm.value.id !== null)
+
+const alignOptions = [
+  { label: 'ESQUERDA', value: 'text-center lg:text-left items-center lg:items-start' },
+  { label: 'CENTRO', value: 'text-center items-center' },
+  { label: 'DIREITA', value: 'text-center lg:text-right items-center lg:items-end' }
+]
+
+const fetchSlides = async () => {
+  loadingSlides.value = true
+  try {
+    const { data, error } = await client
+      .from('hero_slides')
+      .select('*')
+      .order('sort_order', { ascending: true })
+    if (error) throw error
+    slides.value = data || []
+  } catch (err) {
+    console.error('Erro ao buscar slides:', err)
+  } finally {
+    loadingSlides.value = false
+  }
+}
+
+const handleSlideImageUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  uploadingSlideImage.value = true
+  const formData = new FormData()
+  formData.append('file', file)
+
+  try {
+    const response = await $fetch<{ success: boolean; url: string }>('/api/upload', {
+      method: 'POST',
+      body: formData
+    })
+    if (response.success && response.url) {
+      slideForm.value.image = response.url
+    } else {
+      alert('Falha ao fazer upload da imagem.')
+    }
+  } catch (err: any) {
+    console.error('Erro no upload do slide:', err)
+    alert(`Erro ao enviar imagem: ${err.data?.message || err.message || 'Erro desconhecido'}`)
+  } finally {
+    uploadingSlideImage.value = false
+    target.value = ''
+  }
+}
+
+const handleSaveSlide = async () => {
+  if (!slideForm.value.image || !slideForm.value.subtitle || !slideForm.value.title) {
+    alert('Por favor, preencha a imagem, legenda e título do slide.')
+    return
+  }
+
+  try {
+    if (isEditingSlide.value) {
+      const { error } = await client
+        .from('hero_slides')
+        .update({
+          sort_order: Number(slideForm.value.sort_order),
+          image: slideForm.value.image,
+          subtitle: slideForm.value.subtitle,
+          title: slideForm.value.title,
+          btn1: slideForm.value.btn1,
+          btn2: slideForm.value.btn2,
+          align: slideForm.value.align,
+          active: slideForm.value.active
+        })
+        .eq('id', slideForm.value.id)
+      if (error) throw error
+    } else {
+      const { error } = await client
+        .from('hero_slides')
+        .insert([{
+          sort_order: Number(slideForm.value.sort_order),
+          image: slideForm.value.image,
+          subtitle: slideForm.value.subtitle,
+          title: slideForm.value.title,
+          btn1: slideForm.value.btn1,
+          btn2: slideForm.value.btn2,
+          align: slideForm.value.align,
+          active: slideForm.value.active
+        }])
+      if (error) throw error
+    }
+    clearSlideForm()
+    await fetchSlides()
+  } catch (err) {
+    console.error('Erro ao salvar slide:', err)
+    alert('Erro ao salvar o slide no banco de dados.')
+  }
+}
+
+const handleEditSlide = (slide: HeroSlide) => {
+  slideForm.value = {
+    id: slide.id,
+    sort_order: slide.sort_order,
+    image: slide.image,
+    subtitle: slide.subtitle,
+    title: slide.title,
+    btn1: slide.btn1,
+    btn2: slide.btn2,
+    align: slide.align,
+    active: slide.active
+  }
+}
+
+const handleDeleteSlide = async (id: number) => {
+  if (confirm('Tem certeza que deseja excluir este slide do carrossel?')) {
+    try {
+      const { error } = await client
+        .from('hero_slides')
+        .delete()
+        .eq('id', id)
+      if (error) throw error
+      if (slideForm.value.id === id) clearSlideForm()
+      await fetchSlides()
+    } catch (err) {
+      console.error('Erro ao deletar slide:', err)
+      alert('Erro ao deletar o slide do banco de dados.')
+    }
+  }
+}
+
+const handleToggleSlideActive = async (slide: HeroSlide) => {
+  try {
+    const { error } = await client
+      .from('hero_slides')
+      .update({ active: !slide.active })
+      .eq('id', slide.id)
+    if (error) throw error
+    await fetchSlides()
+  } catch (err) {
+    console.error('Erro ao alternar status do slide:', err)
+  }
+}
+
+const clearSlideForm = () => {
+  slideForm.value = {
+    id: null,
+    sort_order: slides.value.length,
+    image: mockImages[0],
+    subtitle: '',
+    title: '',
+    btn1: 'VER COLEÇÃO',
+    btn2: 'SOBRE NÓS',
+    align: 'text-center lg:text-left items-center lg:items-start',
+    active: true
+  }
+}
+
+// ============================================================
+// ABA LOOKBOOK (lookbook_photos)
+// ============================================================
+interface LookbookPhoto {
+  id: number
+  image: string
+  alt: string
+  sort_order: number
+}
+
+const lookbookPhotos = ref<LookbookPhoto[]>([])
+const loadingLookbook = ref(false)
+const uploadingLookbookImage = ref(false)
+
+const lookbookForm = ref({
+  id: null as number | null,
+  image: mockImages[0],
+  alt: '',
+  sort_order: 0
+})
+
+const isEditingLookbook = computed(() => lookbookForm.value.id !== null)
+
+const fetchLookbook = async () => {
+  loadingLookbook.value = true
+  try {
+    const { data, error } = await client
+      .from('lookbook_photos')
+      .select('*')
+      .order('sort_order', { ascending: true })
+    if (error) throw error
+    lookbookPhotos.value = data || []
+  } catch (err) {
+    console.error('Erro ao buscar lookbook:', err)
+  } finally {
+    loadingLookbook.value = false
+  }
+}
+
+const handleLookbookImageUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  uploadingLookbookImage.value = true
+  const formData = new FormData()
+  formData.append('file', file)
+
+  try {
+    const response = await $fetch<{ success: boolean; url: string }>('/api/upload', {
+      method: 'POST',
+      body: formData
+    })
+    if (response.success && response.url) {
+      lookbookForm.value.image = response.url
+    } else {
+      alert('Falha ao fazer upload da imagem.')
+    }
+  } catch (err: any) {
+    console.error('Erro no upload do lookbook:', err)
+    alert(`Erro ao enviar imagem: ${err.data?.message || err.message || 'Erro desconhecido'}`)
+  } finally {
+    uploadingLookbookImage.value = false
+    target.value = ''
+  }
+}
+
+const handleSaveLookbook = async () => {
+  if (!lookbookForm.value.image) {
+    alert('Por favor, envie ou selecione uma imagem.')
+    return
+  }
+
+  try {
+    if (isEditingLookbook.value) {
+      const { error } = await client
+        .from('lookbook_photos')
+        .update({
+          image: lookbookForm.value.image,
+          alt: lookbookForm.value.alt,
+          sort_order: Number(lookbookForm.value.sort_order)
+        })
+        .eq('id', lookbookForm.value.id)
+      if (error) throw error
+    } else {
+      const { error } = await client
+        .from('lookbook_photos')
+        .insert([{
+          image: lookbookForm.value.image,
+          alt: lookbookForm.value.alt || 'Una Joya Lookbook',
+          sort_order: Number(lookbookForm.value.sort_order)
+        }])
+      if (error) throw error
+    }
+    clearLookbookForm()
+    await fetchLookbook()
+  } catch (err) {
+    console.error('Erro ao salvar lookbook:', err)
+    alert('Erro ao salvar no banco de dados.')
+  }
+}
+
+const handleEditLookbook = (item: LookbookPhoto) => {
+  lookbookForm.value = {
+    id: item.id,
+    image: item.image,
+    alt: item.alt,
+    sort_order: item.sort_order
+  }
+}
+
+const handleDeleteLookbook = async (id: number) => {
+  if (confirm('Tem certeza que deseja excluir esta foto do lookbook?')) {
+    try {
+      const { error } = await client
+        .from('lookbook_photos')
+        .delete()
+        .eq('id', id)
+      if (error) throw error
+      if (lookbookForm.value.id === id) clearLookbookForm()
+      await fetchLookbook()
+    } catch (err) {
+      console.error('Erro ao deletar lookbook:', err)
+      alert('Erro ao deletar do banco de dados.')
+    }
+  }
+}
+
+const clearLookbookForm = () => {
+  lookbookForm.value = {
+    id: null,
+    image: mockImages[0],
+    alt: '',
+    sort_order: lookbookPhotos.value.length
+  }
+}
+
 onMounted(() => {
   fetchProducts()
+  fetchAboutAdmin()
+  fetchSlides()
+  fetchLookbook()
 })
 </script>
 
@@ -268,9 +715,41 @@ onMounted(() => {
           
           <nav class="flex-1 space-y-2">
             <p class="font-label-caps text-secondary mb-4 text-[11px] tracking-widest">GERENCIAR BOUTIQUE</p>
-            <a class="flex items-center gap-4 text-primary font-bold border-b border-primary py-4 transition-all" href="#" @click="isSidebarOpen = false">
+            <a 
+              class="flex items-center gap-4 py-4 transition-all" 
+              :class="currentTab === 'products' ? 'text-primary font-bold border-b border-primary' : 'text-secondary hover:text-primary'"
+              href="#" 
+              @click="currentTab = 'products'; isSidebarOpen = false"
+            >
               <span class="material-symbols-outlined">diamond</span>
               <span class="font-label-caps">PRODUTOS</span>
+            </a>
+            <a 
+              class="flex items-center gap-4 py-4 transition-all" 
+              :class="currentTab === 'carousel' ? 'text-primary font-bold border-b border-primary' : 'text-secondary hover:text-primary'"
+              href="#" 
+              @click="currentTab = 'carousel'; isSidebarOpen = false"
+            >
+              <span class="material-symbols-outlined">view_carousel</span>
+              <span class="font-label-caps">CARROSSEL</span>
+            </a>
+            <a 
+              class="flex items-center gap-4 py-4 transition-all" 
+              :class="currentTab === 'lookbook' ? 'text-primary font-bold border-b border-primary' : 'text-secondary hover:text-primary'"
+              href="#" 
+              @click="currentTab = 'lookbook'; isSidebarOpen = false"
+            >
+              <span class="material-symbols-outlined">photo_library</span>
+              <span class="font-label-caps">LOOKBOOK (FAIXA)</span>
+            </a>
+            <a 
+              class="flex items-center gap-4 py-4 transition-all" 
+              :class="currentTab === 'about' ? 'text-primary font-bold border-b border-primary' : 'text-secondary hover:text-primary'"
+              href="#" 
+              @click="currentTab = 'about'; isSidebarOpen = false"
+            >
+              <span class="material-symbols-outlined">info</span>
+              <span class="font-label-caps">SOBRE NÓS</span>
             </a>
             <NuxtLink to="/" class="flex items-center gap-4 text-secondary hover:text-primary py-4 transition-all group" @click="isSidebarOpen = false">
               <span class="material-symbols-outlined group-hover:scale-110">home</span>
@@ -295,30 +774,92 @@ onMounted(() => {
       <main class="flex-1 min-w-0 md:ml-72 p-margin-mobile md:p-16">
         <!-- Header Section -->
         <div class="mb-12 flex flex-col lg:flex-row lg:items-end justify-between gap-6 fade-in">
-          <div>
+          <div v-if="currentTab === 'products'">
             <h2 class="font-display-lg text-3xl md:text-4xl text-primary mb-2 italic">Gerenciamento do Catálogo</h2>
             <p class="text-on-surface-variant font-body-md max-w-xl text-secondary">
               Curadoria da experiência 'Una Joya'. Adicione novas peças artesanais exclusivas e gerencie seu tempo de exibição na vitrine pública.
             </p>
           </div>
+          <div v-else-if="currentTab === 'carousel'">
+            <h2 class="font-display-lg text-3xl md:text-4xl text-primary mb-2 italic">Editar Carrossel</h2>
+            <p class="text-on-surface-variant font-body-md max-w-xl text-secondary">
+              Gerencie as fotos e os textos do banner principal da home. Altere, adicione e reordene os slides do carrossel.
+            </p>
+          </div>
+          <div v-else-if="currentTab === 'lookbook'">
+            <h2 class="font-display-lg text-3xl md:text-4xl text-primary mb-2 italic">Editar Lookbook</h2>
+            <p class="text-on-surface-variant font-body-md max-w-xl text-secondary">
+              Gerencie a faixa rápida de fotos da home page. Faça upload de novas imagens de lifestyle e joias para passar no marquee infinito.
+            </p>
+          </div>
+          <div v-else-if="currentTab === 'about'">
+            <h2 class="font-display-lg text-3xl md:text-4xl text-primary mb-2 italic">Editar Sobre Nós</h2>
+            <p class="text-on-surface-variant font-body-md max-w-xl text-secondary">
+              Gerencie o texto institucional e a foto de apresentação da Una Joya exibidos na página inicial.
+            </p>
+          </div>
           <div class="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
-            <button 
-              v-if="isEditing" 
-              @click="clearForm"
-              class="w-full sm:w-auto border border-soft-stone px-8 py-4 font-label-caps text-secondary hover:bg-soft-stone/20 active:scale-95 transition-all text-xs text-center"
-            >
-              CANCELAR EDIÇÃO
-            </button>
-            <button 
-              @click="handlePublish" 
-              class="w-full sm:w-auto bg-primary text-pure-white px-8 py-4 font-label-caps hover:bg-deep-onyx active:scale-95 transition-all text-xs text-center"
-            >
-              {{ isEditing ? 'SALVAR ALTERAÇÕES' : 'PUBLICAR PEÇA' }}
-            </button>
+            <template v-if="currentTab === 'products'">
+              <button 
+                v-if="isEditing" 
+                @click="clearForm"
+                class="w-full sm:w-auto border border-soft-stone px-8 py-4 font-label-caps text-secondary hover:bg-soft-stone/20 active:scale-95 transition-all text-xs text-center"
+              >
+                CANCELAR EDIÇÃO
+              </button>
+              <button 
+                @click="handlePublish" 
+                class="w-full sm:w-auto bg-primary text-pure-white px-8 py-4 font-label-caps hover:bg-deep-onyx active:scale-95 transition-all text-xs text-center"
+              >
+                {{ isEditing ? 'SALVAR ALTERAÇÕES' : 'PUBLICAR PEÇA' }}
+              </button>
+            </template>
+            <template v-else-if="currentTab === 'carousel'">
+              <button 
+                v-if="isEditingSlide" 
+                @click="clearSlideForm"
+                class="w-full sm:w-auto border border-soft-stone px-8 py-4 font-label-caps text-secondary hover:bg-soft-stone/20 active:scale-95 transition-all text-xs text-center"
+              >
+                CANCELAR EDIÇÃO
+              </button>
+              <button 
+                @click="handleSaveSlide" 
+                class="w-full sm:w-auto bg-primary text-pure-white px-8 py-4 font-label-caps hover:bg-deep-onyx active:scale-95 transition-all text-xs text-center"
+              >
+                {{ isEditingSlide ? 'SALVAR SLIDE' : 'ADICIONAR SLIDE' }}
+              </button>
+            </template>
+            <template v-else-if="currentTab === 'lookbook'">
+              <button 
+                v-if="isEditingLookbook" 
+                @click="clearLookbookForm"
+                class="w-full sm:w-auto border border-soft-stone px-8 py-4 font-label-caps text-secondary hover:bg-soft-stone/20 active:scale-95 transition-all text-xs text-center"
+              >
+                CANCELAR EDIÇÃO
+              </button>
+              <button 
+                @click="handleSaveLookbook" 
+                class="w-full sm:w-auto bg-primary text-pure-white px-8 py-4 font-label-caps hover:bg-deep-onyx active:scale-95 transition-all text-xs text-center"
+              >
+                {{ isEditingLookbook ? 'SALVAR FOTO' : 'ADICIONAR FOTO' }}
+              </button>
+            </template>
+            <template v-else-if="currentTab === 'about'">
+              <button 
+                @click="handleSaveAbout" 
+                :disabled="loadingAbout"
+                class="w-full sm:w-auto bg-primary text-pure-white px-8 py-4 font-label-caps hover:bg-deep-onyx active:scale-95 transition-all text-xs text-center flex items-center justify-center gap-2"
+              >
+                <span v-if="loadingAbout" class="material-symbols-outlined animate-spin text-sm">sync</span>
+                {{ loadingAbout ? 'SALVANDO...' : 'SALVAR SOBRE NÓS' }}
+              </button>
+            </template>
           </div>
         </div>
 
-        <!-- Dashboard Grid -->
+        <!-- Products Tab Content -->
+        <div v-if="currentTab === 'products'">
+          <!-- Dashboard Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
           <!-- New Product Form -->
           <section class="lg:col-span-7 bg-surface-container-low p-6 sm:p-8 md:p-12 border border-soft-stone fade-in shadow-sm" style="animation-delay: 0.1s">
@@ -491,18 +1032,29 @@ onMounted(() => {
                 ></button>
               </div>
 
-              <div 
-                @click="showUrlInput = true"
-                class="aspect-[4/5] border-2 border-dashed border-outline-variant flex flex-col items-center justify-center p-8 text-center hover:bg-white transition-colors cursor-pointer"
+              <label 
+                class="aspect-[4/5] border-2 border-dashed border-outline-variant flex flex-col items-center justify-center p-8 text-center hover:bg-white transition-colors cursor-pointer relative"
+                :class="{ 'opacity-50 pointer-events-none': uploading }"
               >
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  class="hidden" 
+                  @change="handleFileUpload" 
+                  :disabled="uploading"
+                />
                 <div class="w-16 h-16 rounded-full bg-surface flex items-center justify-center mb-4 border border-soft-stone">
-                  <span class="material-symbols-outlined text-primary">add_a_photo</span>
+                  <span class="material-symbols-outlined text-primary" :class="{ 'animate-spin': uploading }">
+                    {{ uploading ? 'sync' : 'add_a_photo' }}
+                  </span>
                 </div>
-                <p class="font-headline-md text-primary text-base mb-2">Clique para inserir URL</p>
-                <p class="text-secondary font-body-md text-xs leading-relaxed">
-                  Insira uma foto em alta resolução com fundo minimalista ou selecione as mockadas acima.
+                <p class="font-headline-md text-primary text-base mb-2">
+                  {{ uploading ? 'Enviando para o R2...' : 'Clique para enviar imagem' }}
                 </p>
-              </div>
+                <p class="text-secondary font-body-md text-xs leading-relaxed">
+                  {{ uploading ? 'Por favor, aguarde...' : 'Selecione uma foto do seu computador para salvar no Cloudflare R2.' }}
+                </p>
+              </label>
             </div>
 
             <!-- Lookbook Preview Card -->
@@ -616,6 +1168,575 @@ onMounted(() => {
             </table>
           </div>
         </section>
+        </div>
+
+        <!-- Carousel Tab Content -->
+        <div v-else-if="currentTab === 'carousel'" class="space-y-12 fade-in">
+          <!-- Form + Preview Grid -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+            <!-- Slide Form -->
+            <section class="lg:col-span-7 bg-surface-container-low p-6 sm:p-8 md:p-12 border border-soft-stone shadow-sm">
+              <div class="flex items-center gap-3 mb-10 border-b border-soft-stone pb-4">
+                <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">
+                  {{ isEditingSlide ? 'edit_note' : 'add_circle' }}
+                </span>
+                <h3 class="font-label-caps text-primary tracking-widest font-bold">
+                  {{ isEditingSlide ? 'EDITAR SLIDE' : 'NOVO SLIDE' }}
+                </h3>
+              </div>
+
+              <form @submit.prevent class="space-y-8">
+                <!-- Subtitle/Legenda -->
+                <div class="group relative border-b border-soft-stone focus-within:border-primary py-2 transition-colors">
+                  <label class="block font-label-caps text-[10px] text-secondary tracking-widest font-bold mb-1">LEGENDA (ex: COLEÇÃO 2026)</label>
+                  <input
+                    v-model="slideForm.subtitle"
+                    class="w-full bg-transparent border-none p-0 focus:ring-0 font-body-md text-primary placeholder:opacity-30 placeholder:text-primary text-sm"
+                    placeholder="COLEÇÃO 2026"
+                    type="text"
+                    required
+                  />
+                </div>
+
+                <!-- Title -->
+                <div class="group relative border-b border-soft-stone focus-within:border-primary py-2 transition-colors">
+                  <label class="block font-label-caps text-[10px] text-secondary tracking-widest font-bold mb-1">TÍTULO PRINCIPAL (use &lt;br&gt; para quebrar linha)</label>
+                  <textarea
+                    v-model="slideForm.title"
+                    class="w-full bg-transparent border-none p-0 focus:ring-0 font-body-md text-primary placeholder:opacity-30 placeholder:text-primary resize-none text-sm leading-relaxed"
+                    placeholder="A ENERGIA DA PEDRA&lt;br&gt;FEITA PARA VESTIR"
+                    rows="2"
+                    required
+                  ></textarea>
+                </div>
+
+                <!-- Buttons Row -->
+                <div class="grid grid-cols-2 gap-6">
+                  <div class="group relative border-b border-soft-stone focus-within:border-primary py-2 transition-colors">
+                    <label class="block font-label-caps text-[10px] text-secondary tracking-widest font-bold mb-1">BOTÃO PRIMÁRIO</label>
+                    <input
+                      v-model="slideForm.btn1"
+                      class="w-full bg-transparent border-none p-0 focus:ring-0 font-body-md text-primary text-sm"
+                      placeholder="VER COLEÇÃO"
+                      type="text"
+                    />
+                  </div>
+                  <div class="group relative border-b border-soft-stone focus-within:border-primary py-2 transition-colors">
+                    <label class="block font-label-caps text-[10px] text-secondary tracking-widest font-bold mb-1">BOTÃO SECUNDÁRIO</label>
+                    <input
+                      v-model="slideForm.btn2"
+                      class="w-full bg-transparent border-none p-0 focus:ring-0 font-body-md text-primary text-sm"
+                      placeholder="SOBRE NÓS"
+                      type="text"
+                    />
+                  </div>
+                </div>
+
+                <!-- Alignment + Order Row -->
+                <div class="grid grid-cols-2 gap-6">
+                  <!-- Alignment -->
+                  <div>
+                    <label class="block font-label-caps text-[10px] text-secondary tracking-widest font-bold mb-3">ALINHAMENTO DO TEXTO</label>
+                    <div class="grid grid-cols-3 gap-2">
+                      <label v-for="opt in alignOptions" :key="opt.value" class="cursor-pointer">
+                        <input v-model="slideForm.align" type="radio" :value="opt.value" class="hidden" />
+                        <div
+                          class="text-center py-3 border font-label-caps text-[10px] tracking-wider transition-all"
+                          :class="slideForm.align === opt.value ? 'border-primary bg-primary text-pure-white' : 'border-soft-stone text-secondary hover:border-primary/50'"
+                        >
+                          {{ opt.label }}
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                  <!-- Order -->
+                  <div class="group relative border-b border-soft-stone focus-within:border-primary py-2 transition-colors">
+                    <label class="block font-label-caps text-[10px] text-secondary tracking-widest font-bold mb-1">ORDEM DE EXIBIÇÃO</label>
+                    <input
+                      v-model="slideForm.sort_order"
+                      class="w-full bg-transparent border-none p-0 focus:ring-0 font-body-md text-primary text-sm"
+                      placeholder="0"
+                      type="number"
+                      min="0"
+                    />
+                  </div>
+                </div>
+
+                <!-- Active Toggle -->
+                <div class="flex items-center justify-between py-4 border-b border-soft-stone">
+                  <div>
+                    <span class="font-label-caps text-[11px] text-primary tracking-widest font-bold">SLIDE ATIVO</span>
+                    <p class="text-[10px] text-secondary tracking-wider uppercase mt-1">Exibir este slide no carrossel da home</p>
+                  </div>
+                  <button
+                    type="button"
+                    class="w-12 h-6 rounded-full p-1 transition-colors relative flex items-center"
+                    :class="slideForm.active ? 'bg-[#202223]' : 'bg-soft-stone'"
+                    @click="slideForm.active = !slideForm.active"
+                  >
+                    <div
+                      class="w-4 h-4 bg-pure-white rounded-full transition-transform shadow-sm"
+                      :class="slideForm.active ? 'translate-x-6' : 'translate-x-0'"
+                    ></div>
+                  </button>
+                </div>
+
+                <!-- Save Button -->
+                <button
+                  type="button"
+                  @click="handleSaveSlide"
+                  class="w-full bg-primary text-pure-white py-5 font-label-caps text-xs md:text-sm tracking-[0.2em] hover:bg-deep-onyx active:scale-[0.98] transition-all flex items-center justify-center gap-3 font-bold"
+                >
+                  <span class="material-symbols-outlined text-sm">{{ isEditingSlide ? 'save' : 'add_photo_alternate' }}</span>
+                  {{ isEditingSlide ? 'SALVAR ALTERAÇÕES DO SLIDE' : 'ADICIONAR SLIDE AO CARROSSEL' }}
+                </button>
+              </form>
+            </section>
+
+            <!-- Image Upload -->
+            <section class="lg:col-span-5 space-y-8">
+              <!-- Upload Card -->
+              <div class="bg-surface-container-low p-6 sm:p-8 border border-soft-stone">
+                <div class="flex items-center justify-between mb-6">
+                  <h3 class="font-label-caps text-[11px] text-primary tracking-widest font-bold">FOTO DO SLIDE</h3>
+                </div>
+
+                <!-- Mock image quick-select -->
+                <div class="grid grid-cols-3 gap-2 mb-6">
+                  <button
+                    v-for="(img, idx) in mockImages"
+                    :key="idx"
+                    @click="slideForm.image = img"
+                    class="aspect-square bg-cover bg-center border-2 transition-all hover:opacity-85"
+                    :class="slideForm.image === img ? 'border-primary scale-95 shadow-sm' : 'border-transparent'"
+                    :style="{ backgroundImage: `url('${img}')` }"
+                    :aria-label="`Selecionar imagem ${idx + 1}`"
+                  ></button>
+                </div>
+
+                <!-- Upload field -->
+                <label
+                  class="aspect-[16/9] border-2 border-dashed border-outline-variant flex flex-col items-center justify-center p-6 text-center hover:bg-white transition-colors cursor-pointer relative overflow-hidden"
+                  :class="{ 'opacity-50 pointer-events-none': uploadingSlideImage }"
+                >
+                  <!-- Preview if image set -->
+                  <div v-if="slideForm.image" class="absolute inset-0">
+                    <img :src="slideForm.image" class="w-full h-full object-cover opacity-40" alt="preview" />
+                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                      <span class="material-symbols-outlined text-primary text-3xl mb-2" :class="{ 'animate-spin': uploadingSlideImage }">
+                        {{ uploadingSlideImage ? 'sync' : 'add_a_photo' }}
+                      </span>
+                      <p class="font-body-md text-primary text-sm font-bold">
+                        {{ uploadingSlideImage ? 'Enviando...' : 'Clique para trocar a foto' }}
+                      </p>
+                    </div>
+                  </div>
+                  <template v-else>
+                    <div class="w-16 h-16 rounded-full bg-surface flex items-center justify-center mb-4 border border-soft-stone">
+                      <span class="material-symbols-outlined text-primary" :class="{ 'animate-spin': uploadingSlideImage }">
+                        {{ uploadingSlideImage ? 'sync' : 'add_a_photo' }}
+                      </span>
+                    </div>
+                    <p class="font-headline-md text-primary text-base mb-2">Clique para enviar imagem</p>
+                    <p class="text-secondary font-body-md text-xs">Foto de alta qualidade para o banner principal</p>
+                  </template>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    class="hidden"
+                    @change="handleSlideImageUpload"
+                    :disabled="uploadingSlideImage"
+                  />
+                </label>
+
+                <!-- URL input manual -->
+                <div class="mt-4 group relative border-b border-soft-stone focus-within:border-primary py-2 transition-colors">
+                  <label class="block font-label-caps text-[10px] text-secondary tracking-widest font-bold mb-1">OU COLE UM LINK DE IMAGEM</label>
+                  <input
+                    v-model="slideForm.image"
+                    type="text"
+                    placeholder="https://..."
+                    class="w-full bg-transparent border-none p-0 focus:ring-0 font-body-md text-primary text-xs"
+                  />
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <!-- Slides List Table -->
+          <section class="fade-in" style="animation-delay: 0.2s">
+            <div class="flex items-end justify-between mb-6 border-b border-soft-stone pb-4">
+              <h3 class="font-display-lg text-2xl md:text-3xl text-primary italic">Slides do Carrossel</h3>
+              <span class="font-label-caps text-xs text-secondary font-bold">{{ slides.length }} SLIDE(S)</span>
+            </div>
+
+            <!-- Loading -->
+            <div v-if="loadingSlides" class="flex items-center justify-center py-12">
+              <span class="material-symbols-outlined animate-spin text-primary text-3xl">sync</span>
+            </div>
+
+            <!-- Grid of slides -->
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div
+                v-for="slide in slides"
+                :key="slide.id"
+                class="relative group overflow-hidden border border-soft-stone bg-white shadow-sm transition-shadow hover:shadow-md"
+              >
+                <!-- Slide image preview -->
+                <div class="relative aspect-[16/9] overflow-hidden bg-soft-stone">
+                  <img
+                    :src="slide.image"
+                    :alt="slide.subtitle"
+                    class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <!-- Overlay de texto -->
+                  <div class="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-4 text-center">
+                    <p class="font-label-caps text-pure-white/80 text-[10px] tracking-[0.3em] mb-1">{{ slide.subtitle }}</p>
+                    <h4 class="font-display-lg text-pure-white text-lg leading-tight" v-html="slide.title"></h4>
+                  </div>
+                  <!-- Status badge -->
+                  <div class="absolute top-3 left-3">
+                    <span
+                      class="font-label-caps text-[9px] font-bold px-2 py-1 tracking-widest"
+                      :class="slide.active ? 'bg-[#2D8A5B] text-white' : 'bg-error text-white'"
+                    >
+                      {{ slide.active ? 'ATIVO' : 'INATIVO' }}
+                    </span>
+                  </div>
+                  <!-- Order badge -->
+                  <div class="absolute top-3 right-3">
+                    <span class="bg-primary text-pure-white font-label-caps text-[9px] px-2 py-1 font-bold">
+                      Nº {{ slide.sort_order + 1 }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Slide info & actions -->
+                <div class="p-4">
+                  <div class="flex items-center gap-2 mb-3">
+                    <span class="font-label-caps text-[10px] text-secondary tracking-widest">BOTÕES:</span>
+                    <span class="font-label-caps text-[10px] text-primary font-bold">{{ slide.btn1 }}</span>
+                    <span class="text-soft-stone">|</span>
+                    <span class="font-label-caps text-[10px] text-primary font-bold">{{ slide.btn2 }}</span>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <!-- Toggle Active -->
+                    <button
+                      @click="handleToggleSlideActive(slide)"
+                      class="flex items-center gap-1.5 font-label-caps text-[10px] tracking-widest transition-colors"
+                      :class="slide.active ? 'text-error hover:text-error/80' : 'text-[#2D8A5B] hover:text-[#2D8A5B]/80'"
+                    >
+                      <span class="material-symbols-outlined text-sm">{{ slide.active ? 'visibility_off' : 'visibility' }}</span>
+                      {{ slide.active ? 'DESATIVAR' : 'ATIVAR' }}
+                    </button>
+                    <span class="text-soft-stone">|</span>
+                    <!-- Edit -->
+                    <button
+                      @click="handleEditSlide(slide)"
+                      class="flex items-center gap-1.5 font-label-caps text-[10px] tracking-widest text-secondary hover:text-primary transition-colors"
+                    >
+                      <span class="material-symbols-outlined text-sm">edit</span>
+                      EDITAR
+                    </button>
+                    <span class="text-soft-stone">|</span>
+                    <!-- Delete -->
+                    <button
+                      @click="handleDeleteSlide(slide.id)"
+                      class="flex items-center gap-1.5 font-label-caps text-[10px] tracking-widest text-secondary hover:text-error transition-colors"
+                    >
+                      <span class="material-symbols-outlined text-sm">delete</span>
+                      EXCLUIR
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Empty state -->
+              <div v-if="slides.length === 0" class="col-span-full py-16 text-center text-secondary font-body-md text-sm">
+                <span class="material-symbols-outlined text-4xl text-soft-stone mb-4 block">view_carousel</span>
+                Nenhum slide cadastrado no carrossel ainda.
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Lookbook Tab Content -->
+        <div v-else-if="currentTab === 'lookbook'" class="space-y-12 fade-in">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+            <!-- Lookbook Photo Form -->
+            <section class="lg:col-span-7 bg-surface-container-low p-6 sm:p-8 md:p-12 border border-soft-stone shadow-sm">
+              <div class="flex items-center gap-3 mb-10 border-b border-soft-stone pb-4">
+                <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">
+                  {{ isEditingLookbook ? 'edit_note' : 'add_circle' }}
+                </span>
+                <h3 class="font-label-caps text-primary tracking-widest font-bold">
+                  {{ isEditingLookbook ? 'EDITAR FOTO DO LOOKBOOK' : 'NOVA FOTO DO LOOKBOOK' }}
+                </h3>
+              </div>
+
+              <form @submit.prevent class="space-y-8">
+                <!-- Alt / Description -->
+                <div class="group relative border-b border-soft-stone focus-within:border-primary py-2 transition-colors">
+                  <label class="block font-label-caps text-[10px] text-secondary tracking-widest font-bold mb-1">DESCRIÇÃO DA IMAGEM (ALT TEXT)</label>
+                  <input
+                    v-model="lookbookForm.alt"
+                    class="w-full bg-transparent border-none p-0 focus:ring-0 font-body-md text-primary placeholder:opacity-30 placeholder:text-primary text-sm"
+                    placeholder="Ex: Detalhe do Colar de Esmeraldas Lookbook"
+                    type="text"
+                    required
+                  />
+                </div>
+
+                <!-- Order -->
+                <div class="group relative border-b border-soft-stone focus-within:border-primary py-2 transition-colors font-bold">
+                  <label class="block font-label-caps text-[10px] text-secondary tracking-widest font-bold mb-1">ORDEM DE EXIBIÇÃO</label>
+                  <input
+                    v-model="lookbookForm.sort_order"
+                    class="w-full bg-transparent border-none p-0 focus:ring-0 font-body-md text-primary text-sm font-semibold"
+                    placeholder="0"
+                    type="number"
+                    min="0"
+                  />
+                </div>
+
+                <!-- Save Button -->
+                <button
+                  type="button"
+                  @click="handleSaveLookbook"
+                  class="w-full bg-primary text-pure-white py-5 font-label-caps text-xs md:text-sm tracking-[0.2em] hover:bg-deep-onyx active:scale-[0.98] transition-all flex items-center justify-center gap-3 font-bold"
+                >
+                  <span class="material-symbols-outlined text-sm">{{ isEditingLookbook ? 'save' : 'add_photo_alternate' }}</span>
+                  {{ isEditingLookbook ? 'SALVAR ALTERAÇÕES' : 'ADICIONAR FOTO AO LOOKBOOK' }}
+                </button>
+              </form>
+            </section>
+
+            <!-- Lookbook Media Card -->
+            <section class="lg:col-span-5 space-y-8">
+              <div class="bg-surface-container-low p-6 sm:p-8 border border-soft-stone">
+                <h3 class="font-label-caps text-[11px] text-primary tracking-widest font-bold mb-6">FOTOGRAFIA</h3>
+
+                <!-- Upload field -->
+                <label
+                  class="aspect-[3/4] border-2 border-dashed border-outline-variant flex flex-col items-center justify-center p-6 text-center hover:bg-white transition-colors cursor-pointer relative overflow-hidden"
+                  :class="{ 'opacity-50 pointer-events-none': uploadingLookbookImage }"
+                >
+                  <div v-if="lookbookForm.image" class="absolute inset-0">
+                    <img :src="lookbookForm.image" class="w-full h-full object-cover opacity-55" alt="preview" />
+                    <div class="absolute inset-0 flex flex-col items-center justify-center bg-black/10">
+                      <span class="material-symbols-outlined text-primary text-3xl mb-2" :class="{ 'animate-spin': uploadingLookbookImage }">
+                        {{ uploadingLookbookImage ? 'sync' : 'add_a_photo' }}
+                      </span>
+                      <p class="font-body-md text-primary text-sm font-bold">
+                        {{ uploadingLookbookImage ? 'Enviando...' : 'Clique para trocar' }}
+                      </p>
+                    </div>
+                  </div>
+                  <template v-else>
+                    <div class="w-16 h-16 rounded-full bg-surface flex items-center justify-center mb-4 border border-soft-stone">
+                      <span class="material-symbols-outlined text-primary" :class="{ 'animate-spin': uploadingLookbookImage }">
+                        {{ uploadingLookbookImage ? 'sync' : 'add_a_photo' }}
+                      </span>
+                    </div>
+                    <p class="font-headline-md text-primary text-base mb-2">Clique para enviar imagem</p>
+                    <p class="text-secondary font-body-md text-xs">A foto deve estar em formato vertical</p>
+                  </template>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    class="hidden"
+                    @change="handleLookbookImageUpload"
+                    :disabled="uploadingLookbookImage"
+                  />
+                </label>
+
+                <!-- URL manual input -->
+                <div class="mt-4 group relative border-b border-soft-stone focus-within:border-primary py-2 transition-colors">
+                  <label class="block font-label-caps text-[10px] text-secondary tracking-widest font-bold mb-1">OU INSIRA O LINK DA IMAGEM</label>
+                  <input
+                    v-model="lookbookForm.image"
+                    type="text"
+                    placeholder="https://..."
+                    class="w-full bg-transparent border-none p-0 focus:ring-0 font-body-md text-primary text-xs"
+                  />
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <!-- Lookbook Photos List -->
+          <section class="fade-in" style="animation-delay: 0.2s">
+            <div class="flex items-end justify-between mb-6 border-b border-soft-stone pb-4">
+              <h3 class="font-display-lg text-2xl md:text-3xl text-primary italic">Fotos na Faixa Lookbook</h3>
+              <span class="font-label-caps text-xs text-secondary font-bold">{{ lookbookPhotos.length }} FOTO(S)</span>
+            </div>
+
+            <!-- Loading -->
+            <div v-if="loadingLookbook" class="flex items-center justify-center py-12">
+              <span class="material-symbols-outlined animate-spin text-primary text-3xl">sync</span>
+            </div>
+
+            <!-- Grid -->
+            <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 3xl:grid-cols-6 gap-6">
+              <div
+                v-for="photo in lookbookPhotos"
+                :key="photo.id"
+                class="relative group overflow-hidden border border-soft-stone bg-white shadow-sm flex flex-col"
+              >
+                <!-- Aspect vertical image preview -->
+                <div class="aspect-[3/4] overflow-hidden bg-soft-stone relative">
+                  <img
+                    :src="photo.image"
+                    :alt="photo.alt"
+                    class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <!-- Order badge -->
+                  <div class="absolute top-3 right-3">
+                    <span class="bg-primary text-pure-white font-label-caps text-[9px] px-2 py-1 font-bold">
+                      Ordem: {{ photo.sort_order }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Info and actions -->
+                <div class="p-4 flex-grow flex flex-col justify-between">
+                  <p class="font-body-md text-xs text-secondary line-clamp-2 mb-3 leading-snug">
+                    {{ photo.alt }}
+                  </p>
+                  <div class="flex items-center justify-between border-t border-soft-stone pt-3">
+                    <button
+                      @click="handleEditLookbook(photo)"
+                      class="flex items-center gap-1 font-label-caps text-[9px] text-secondary hover:text-primary transition-colors tracking-widest font-bold"
+                    >
+                      <span class="material-symbols-outlined text-xs">edit</span>
+                      EDITAR
+                    </button>
+                    <button
+                      @click="handleDeleteLookbook(photo.id)"
+                      class="flex items-center gap-1 font-label-caps text-[9px] text-secondary hover:text-error transition-colors tracking-widest font-bold"
+                    >
+                      <span class="material-symbols-outlined text-xs">delete</span>
+                      EXCLUIR
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Empty state -->
+              <div v-if="lookbookPhotos.length === 0" class="col-span-full py-16 text-center text-secondary font-body-md text-sm">
+                <span class="material-symbols-outlined text-4xl text-soft-stone mb-4 block">photo_library</span>
+                Nenhuma foto cadastrada no lookbook ainda.
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- About Us Tab Content -->
+        <div v-else-if="currentTab === 'about'" class="grid grid-cols-1 lg:grid-cols-12 gap-12 fade-in">
+          <!-- Editor Form -->
+          <section class="lg:col-span-7 bg-surface-container-low p-6 sm:p-8 md:p-12 border border-soft-stone shadow-sm">
+            <div class="flex items-center gap-3 mb-10 border-b border-soft-stone pb-4">
+              <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">
+                info
+              </span>
+              <h3 class="font-label-caps text-primary tracking-widest font-bold">
+                EDITAR CONTEÚDO INSTITUCIONAL
+              </h3>
+            </div>
+            
+            <form @submit.prevent class="space-y-10">
+              <!-- Title -->
+              <div class="group relative border-b border-soft-stone focus-within:border-primary py-2 transition-colors">
+                <label class="block font-label-caps text-[10px] text-secondary tracking-widest font-bold mb-1">TÍTULO PRINCIPAL</label>
+                <input 
+                  v-model="aboutForm.title"
+                  class="w-full bg-transparent border-none p-0 focus:ring-0 font-headline-md text-primary placeholder:opacity-30 placeholder:text-primary text-lg" 
+                  placeholder="Ex: Uma jornada de afeto lapidada pelo tempo." 
+                  type="text"
+                  required
+                />
+              </div>
+
+              <!-- Content -->
+              <div class="group relative border-b border-soft-stone focus-within:border-primary py-2 transition-colors">
+                <label class="block font-label-caps text-[10px] text-secondary tracking-widest font-bold mb-1 font-bold">HISTÓRIA / SOBRE NÓS</label>
+                <textarea 
+                  v-model="aboutForm.content"
+                  class="w-full bg-transparent border-none p-0 focus:ring-0 font-body-md text-primary placeholder:opacity-30 placeholder:text-primary resize-none text-sm leading-relaxed" 
+                  placeholder="Conte a história da sua marca..." 
+                  rows="10"
+                  required
+                ></textarea>
+              </div>
+
+              <button 
+                type="button"
+                @click="handleSaveAbout"
+                :disabled="loadingAbout"
+                class="w-full bg-primary text-pure-white py-5 font-label-caps text-xs md:text-sm tracking-[0.2em] hover:bg-deep-onyx active:scale-[0.98] transition-all flex items-center justify-center gap-3 font-bold"
+              >
+                <span class="material-symbols-outlined text-sm">{{ loadingAbout ? 'sync' : 'save' }}</span>
+                {{ loadingAbout ? 'SALVANDO ALTERAÇÕES...' : 'SALVAR ALTERAÇÕES' }}
+              </button>
+            </form>
+          </section>
+
+          <!-- Visual Assets & Preview -->
+          <section class="lg:col-span-5 space-y-12">
+            <!-- Image Card -->
+            <div class="bg-surface-container-low p-6 sm:p-8 border border-soft-stone">
+              <h3 class="font-label-caps text-[11px] text-primary tracking-widest font-bold mb-6">FOTO DE APRESENTAÇÃO</h3>
+
+              <!-- Upload field -->
+              <label 
+                class="aspect-[4/5] border-2 border-dashed border-outline-variant flex flex-col items-center justify-center p-8 text-center hover:bg-white transition-colors cursor-pointer relative"
+                :class="{ 'opacity-50 pointer-events-none': uploadingAboutImage }"
+              >
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  class="hidden" 
+                  @change="handleAboutImageUpload" 
+                  :disabled="uploadingAboutImage"
+                />
+                <div class="w-16 h-16 rounded-full bg-surface flex items-center justify-center mb-4 border border-soft-stone">
+                  <span class="material-symbols-outlined text-primary" :class="{ 'animate-spin': uploadingAboutImage }">
+                    {{ uploadingAboutImage ? 'sync' : 'add_a_photo' }}
+                  </span>
+                </div>
+                <p class="font-headline-md text-primary text-base mb-2">
+                  {{ uploadingAboutImage ? 'Enviando para o R2...' : 'Clique para alterar foto' }}
+                </p>
+                <p class="text-secondary font-body-md text-xs leading-relaxed">
+                  Selecione uma foto da sua história para salvar no Cloudflare R2.
+                </p>
+              </label>
+            </div>
+
+            <!-- Preview Card -->
+            <div class="relative group overflow-hidden bg-pure-white border border-soft-stone luxury-shadow">
+              <div class="absolute top-4 left-4 z-10">
+                <span class="bg-primary text-pure-white font-label-caps px-3 py-1.5 text-[9px] font-bold tracking-widest">PREVIEW SITE</span>
+              </div>
+              <div class="aspect-[4/5] bg-soft-stone overflow-hidden">
+                <img 
+                  class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                  :src="aboutForm.image || '/about_us.png'"
+                  alt="Preview do sobre nós"
+                />
+              </div>
+              <div class="p-6 sm:p-8 text-center">
+                <p class="font-label-caps text-secondary text-[10px] mb-2 tracking-widest font-semibold">SOBRE NÓS</p>
+                <h4 class="font-headline-md text-primary text-xl mb-4 italic">
+                  {{ aboutForm.title || 'Título do Sobre Nós' }}
+                </h4>
+                <p class="font-body-md text-secondary mb-6 text-xs leading-relaxed max-w-sm mx-auto line-clamp-4 whitespace-pre-line text-left">
+                  {{ aboutForm.content || 'História da marca...' }}
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
       </main>
     </div>
   </div>

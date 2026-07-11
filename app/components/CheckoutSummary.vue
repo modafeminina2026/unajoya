@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue'
+
 const { 
+  items,
   subtotal, 
   total,
   discount
@@ -9,6 +12,7 @@ const showCouponInput = ref(false)
 const couponCode = ref('')
 const calculatedShipping = ref<string | null>(null)
 const calculatingShipping = ref(false)
+const checkoutLoading = ref(false)
 
 const formatCurrency = (val: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
@@ -26,6 +30,39 @@ const handleCalculateShipping = () => {
     calculatingShipping.value = false
     calculatedShipping.value = 'Grátis'
   }, 1200)
+}
+
+const handleCheckout = async () => {
+  if (items.value.length === 0) {
+    alert('Seu carrinho está vazio!')
+    return
+  }
+
+  checkoutLoading.value = true
+  try {
+    const response = await $fetch<{ success: boolean; url: string }>('/api/checkout', {
+      method: 'POST',
+      body: {
+        items: items.value.map(item => ({
+          name: item.product.name,
+          price: item.product.price,
+          quantity: item.quantity,
+          image: item.product.image
+        }))
+      }
+    })
+
+    if (response.success && response.url) {
+      window.location.href = response.url
+    } else {
+      alert('Falha ao processar checkout. Tente novamente.')
+    }
+  } catch (err: any) {
+    console.error('Erro ao redirecionar para checkout:', err)
+    alert(`Erro ao iniciar pagamento: ${err.data?.message || err.message || 'Erro desconhecido'}`)
+  } finally {
+    checkoutLoading.value = false
+  }
 }
 </script>
 
@@ -104,9 +141,13 @@ const handleCalculateShipping = () => {
 
     <!-- Submit checkout action -->
     <button 
-      class="w-full bg-primary text-white py-4 font-label-caps tracking-widest uppercase hover:bg-on-surface-variant transition-all active:scale-[0.98] duration-150 font-bold"
+      @click="handleCheckout"
+      :disabled="checkoutLoading"
+      class="w-full bg-primary text-white py-4 font-label-caps tracking-widest uppercase hover:bg-on-surface-variant transition-all active:scale-[0.98] duration-150 font-bold flex items-center justify-center gap-2"
+      :class="{ 'opacity-50 pointer-events-none': checkoutLoading }"
     >
-      Finalizar a compra
+      <span v-if="checkoutLoading" class="material-symbols-outlined animate-spin text-sm">sync</span>
+      {{ checkoutLoading ? 'Carregando...' : 'Finalizar a compra' }}
     </button>
   </div>
 </template>

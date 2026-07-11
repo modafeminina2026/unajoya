@@ -12,7 +12,7 @@ export interface CartItem {
 const defaultProduct: CartProduct = {
   name: 'Colar em Pedras Verde Esmeralda',
   price: 488.00,
-  image: 'https://lh3.googleusercontent.com/aida/AP1WRLv32RCOxvnLt6F9GVk2xQB2SLlIZw-JJNeXrtBr-AbV3tEAsg7iBiFWAAHGQ2MgJpZjyg7UWvydCDyf6DzWZu1oi6ssAzBHor5h-AbIYfVyAHgaobl_bau3CYboabcP1ETLbyM_y_wsCC698GjwAnLa-OlFeJaeCim5QP0kbo8ebTNhvnCose7vqxvN_giMcm0wZ9pJWC5L_eiXK8Lh050yYOvUDqIdV_lqSO51l-QRvNlMLqGOgcTfON8'
+  image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD1bN2GwVJfIq9B0RDrPenIwKDU28PNlwjAZhd-pM1A1DZyUxQN0lY8j69TovaBQUpQNw8H4Mu_mst4xrrZaQrGrWvUknbD3h-5EKxN4v43_v4EdmG36PpingB9_xSpn8y2uNR5cK3rU-w0ASkpHoo9iE4RykowqWXnlU1Afe__5rf5KuIA4Vz1_0Oa0uUEGfrGQPEO7ANklGwPNkSTcCs3yaVKQS0b1mwP1Os4gCZ6O3-aSfa1-Wt9j5Nn6xXLKTBbITtiHBQ0cQGN'
 }
 
 export const useCart = () => {
