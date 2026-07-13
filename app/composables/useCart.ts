@@ -9,19 +9,60 @@ export interface CartItem {
   quantity: number
 }
 
-const defaultProduct: CartProduct = {
-  name: 'Colar em Pedras Verde Esmeralda',
-  price: 488.00,
-  image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD1bN2GwVJfIq9B0RDrPenIwKDU28PNlwjAZhd-pM1A1DZyUxQN0lY8j69TovaBQUpQNw8H4Mu_mst4xrrZaQrGrWvUknbD3h-5EKxN4v43_v4EdmG36PpingB9_xSpn8y2uNR5cK3rU-w0ASkpHoo9iE4RykowqWXnlU1Afe__5rf5KuIA4Vz1_0Oa0uUEGfrGQPEO7ANklGwPNkSTcCs3yaVKQS0b1mwP1Os4gCZ6O3-aSfa1-Wt9j5Nn6xXLKTBbITtiHBQ0cQGN'
+const CART_STORAGE_KEY = 'unajoya-cart'
+
+// Helpers para persistência no localStorage
+const loadCartFromStorage = (): CartItem[] | null => {
+  if (import.meta.server) return null
+  try {
+    const stored = localStorage.getItem(CART_STORAGE_KEY)
+    if (stored) {
+      return JSON.parse(stored) as CartItem[]
+    }
+  } catch (e) {
+    console.warn('Erro ao ler carrinho do localStorage:', e)
+  }
+  return null
+}
+
+const saveCartToStorage = (items: CartItem[]) => {
+  if (import.meta.server) return
+  try {
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items))
+  } catch (e) {
+    console.warn('Erro ao salvar carrinho no localStorage:', e)
+  }
+}
+
+const clearCartStorage = () => {
+  if (import.meta.server) return
+  try {
+    localStorage.removeItem(CART_STORAGE_KEY)
+  } catch (e) {
+    console.warn('Erro ao limpar carrinho do localStorage:', e)
+  }
 }
 
 export const useCart = () => {
-  const items = useState<CartItem[]>('cart-items', () => [
-    { product: defaultProduct, quantity: 1 }
-  ])
+  const items = useState<CartItem[]>('cart-items', () => [])
   const giftWrap = useState<boolean>('cart-giftwrap', () => false)
-  const isCartEmpty = useState<boolean>('cart-empty', () => false)
+  const isCartEmpty = computed(() => items.value.length === 0)
   const isPopupOpen = useState<boolean>('cart-popup-open', () => false)
+  const hydrated = useState<boolean>('cart-hydrated', () => false)
+
+  // Hidratar o carrinho do localStorage no cliente (apenas uma vez)
+  if (import.meta.client && !hydrated.value) {
+    const stored = loadCartFromStorage()
+    if (stored && stored.length > 0) {
+      items.value = stored
+    }
+    hydrated.value = true
+  }
+
+  // Watcher para persistir alterações no localStorage
+  watch(items, (newItems) => {
+    saveCartToStorage(newItems)
+  }, { deep: true })
 
   const subtotal = computed(() => {
     return items.value.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
@@ -56,15 +97,20 @@ export const useCart = () => {
 
   const deleteItem = (productName: string) => {
     items.value = items.value.filter(i => i.product.name !== productName)
-    if (items.value.length === 0) {
-      isCartEmpty.value = true
-    }
   }
 
-  const resetCart = () => {
-    items.value = [{ product: defaultProduct, quantity: 1 }]
+  // clearCart: esvazia completamente (usado após pagamento)
+  const clearCart = () => {
+    items.value = []
     giftWrap.value = false
-    isCartEmpty.value = false
+    clearCartStorage()
+  }
+
+  // resetCart: restaura ao estado padrão (botão "Restaurar" no checkout)
+  const resetCart = () => {
+    items.value = []
+    giftWrap.value = false
+    clearCartStorage()
   }
 
   const addToCart = (newProduct: CartProduct) => {
@@ -74,7 +120,6 @@ export const useCart = () => {
     } else {
       items.value.push({ product: { ...newProduct }, quantity: 1 })
     }
-    isCartEmpty.value = false
     isPopupOpen.value = true
   }
 
@@ -91,6 +136,7 @@ export const useCart = () => {
     decrement,
     deleteItem,
     resetCart,
+    clearCart,
     addToCart
   }
 }

@@ -252,7 +252,7 @@ const formatCurrency = (val: number) => {
 }
 
 // Controle de abas do painel
-const currentTab = ref('products') // 'products', 'about', 'carousel' ou 'lookbook'
+const currentTab = ref('products') // 'products', 'about', 'carousel', 'lookbook' ou 'orders'
 
 // Estado do formulário do Sobre Nós
 const aboutForm = ref({
@@ -663,11 +663,113 @@ const clearLookbookForm = () => {
   }
 }
 
+// ============================================================
+// ABA PEDIDOS (orders)
+// ============================================================
+interface AdminOrder {
+  id: number
+  created_at: string
+  stripe_session_id: string | null
+  customer_email: string | null
+  customer_name: string | null
+  items: Array<{ name: string; price: number; quantity: number; image: string }>
+  subtotal: number
+  total: number
+  status: string
+  tracking_code: string | null
+  notes: string | null
+}
+
+const orders = ref<AdminOrder[]>([])
+const loadingOrders = ref(false)
+const savingOrderId = ref<number | null>(null)
+
+const orderStatusOptions = [
+  { value: 'pendente', label: 'Pendente', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+  { value: 'preparando', label: 'Preparando', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+  { value: 'enviado', label: 'Enviado', color: 'bg-purple-100 text-purple-800 border-purple-200' },
+  { value: 'entregue', label: 'Entregue', color: 'bg-green-100 text-green-800 border-green-200' }
+]
+
+const getStatusOption = (status: string) => {
+  return orderStatusOptions.find(o => o.value === status) || orderStatusOptions[0]
+}
+
+const pendingOrdersCount = computed(() => orders.value.filter(o => o.status === 'pendente').length)
+
+const fetchOrders = async () => {
+  loadingOrders.value = true
+  try {
+    const { data, error } = await client
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    orders.value = data || []
+  } catch (err) {
+    console.error('Erro ao buscar pedidos:', err)
+  } finally {
+    loadingOrders.value = false
+  }
+}
+
+const handleUpdateOrderStatus = async (order: AdminOrder, newStatus: string) => {
+  savingOrderId.value = order.id
+  try {
+    const { error } = await client
+      .from('orders')
+      .update({ status: newStatus })
+      .eq('id', order.id)
+    if (error) throw error
+    order.status = newStatus
+  } catch (err) {
+    console.error('Erro ao atualizar status do pedido:', err)
+    alert('Erro ao atualizar status do pedido.')
+  } finally {
+    savingOrderId.value = null
+  }
+}
+
+const handleSaveOrderTracking = async (order: AdminOrder) => {
+  savingOrderId.value = order.id
+  try {
+    const { error } = await client
+      .from('orders')
+      .update({ 
+        tracking_code: order.tracking_code,
+        notes: order.notes
+      })
+      .eq('id', order.id)
+    if (error) throw error
+    alert('Informações do pedido salvas com sucesso!')
+  } catch (err) {
+    console.error('Erro ao salvar rastreio:', err)
+    alert('Erro ao salvar informações do pedido.')
+  } finally {
+    savingOrderId.value = null
+  }
+}
+
+const formatOrderDate = (dateStr: string) => {
+  return new Date(dateStr).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const orderTotalItems = (order: AdminOrder) => {
+  return order.items.reduce((sum, item) => sum + item.quantity, 0)
+}
+
 onMounted(() => {
   fetchProducts()
   fetchAboutAdmin()
   fetchSlides()
   fetchLookbook()
+  fetchOrders()
 })
 </script>
 
@@ -715,6 +817,16 @@ onMounted(() => {
           
           <nav class="flex-1 space-y-2">
             <p class="font-label-caps text-secondary mb-4 text-[11px] tracking-widest">GERENCIAR BOUTIQUE</p>
+            <a 
+              class="flex items-center gap-4 py-4 transition-all" 
+              :class="currentTab === 'orders' ? 'text-primary font-bold border-b border-primary' : 'text-secondary hover:text-primary'"
+              href="#" 
+              @click="currentTab = 'orders'; isSidebarOpen = false"
+            >
+              <span class="material-symbols-outlined">shopping_bag</span>
+              <span class="font-label-caps">PEDIDOS</span>
+              <span v-if="pendingOrdersCount > 0" class="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">{{ pendingOrdersCount }}</span>
+            </a>
             <a 
               class="flex items-center gap-4 py-4 transition-all" 
               :class="currentTab === 'products' ? 'text-primary font-bold border-b border-primary' : 'text-secondary hover:text-primary'"
@@ -796,6 +908,12 @@ onMounted(() => {
             <h2 class="font-display-lg text-3xl md:text-4xl text-primary mb-2 italic">Editar Sobre Nós</h2>
             <p class="text-on-surface-variant font-body-md max-w-xl text-secondary">
               Gerencie o texto institucional e a foto de apresentação da Una Joya exibidos na página inicial.
+            </p>
+          </div>
+          <div v-else-if="currentTab === 'orders'">
+            <h2 class="font-display-lg text-3xl md:text-4xl text-primary mb-2 italic">Gestão de Pedidos</h2>
+            <p class="text-on-surface-variant font-body-md max-w-xl text-secondary">
+              Acompanhe, atualize o status e adicione códigos de rastreio dos pedidos dos seus clientes.
             </p>
           </div>
           <div class="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
@@ -1736,6 +1854,154 @@ onMounted(() => {
               </div>
             </div>
           </section>
+        </div>
+
+        <!-- Orders Tab Content -->
+        <div v-if="currentTab === 'orders'" class="fade-in">
+          <!-- Counters -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white border border-soft-stone p-4 text-center">
+              <p class="text-2xl font-bold text-primary">{{ orders.length }}</p>
+              <p class="text-xs text-secondary font-label-caps tracking-wider">TOTAL</p>
+            </div>
+            <div class="bg-amber-50 border border-amber-200 p-4 text-center">
+              <p class="text-2xl font-bold text-amber-700">{{ orders.filter(o => o.status === 'pendente').length }}</p>
+              <p class="text-xs text-amber-600 font-label-caps tracking-wider">PENDENTES</p>
+            </div>
+            <div class="bg-blue-50 border border-blue-200 p-4 text-center">
+              <p class="text-2xl font-bold text-blue-700">{{ orders.filter(o => o.status === 'preparando').length }}</p>
+              <p class="text-xs text-blue-600 font-label-caps tracking-wider">PREPARANDO</p>
+            </div>
+            <div class="bg-green-50 border border-green-200 p-4 text-center">
+              <p class="text-2xl font-bold text-green-700">{{ orders.filter(o => o.status === 'enviado' || o.status === 'entregue').length }}</p>
+              <p class="text-xs text-green-600 font-label-caps tracking-wider">ENVIADOS</p>
+            </div>
+          </div>
+
+          <!-- Loading -->
+          <div v-if="loadingOrders" class="text-center py-16">
+            <span class="material-symbols-outlined animate-spin text-4xl text-secondary">sync</span>
+            <p class="text-secondary mt-4">Carregando pedidos...</p>
+          </div>
+
+          <!-- Empty -->
+          <div v-else-if="orders.length === 0" class="bg-white border border-soft-stone p-16 text-center space-y-4">
+            <span class="material-symbols-outlined text-6xl text-secondary/30">inbox</span>
+            <h3 class="font-headline-md text-xl text-primary">Nenhum pedido ainda</h3>
+            <p class="text-secondary text-sm">Os pedidos realizados pelos clientes aparecerão aqui.</p>
+          </div>
+
+          <!-- Orders List -->
+          <div v-else class="space-y-6">
+            <div 
+              v-for="order in orders" 
+              :key="order.id" 
+              class="bg-white border border-soft-stone shadow-sm overflow-hidden"
+            >
+              <!-- Order Header -->
+              <div class="p-5 border-b border-soft-stone flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-4">
+                  <div>
+                    <p class="font-bold text-primary text-lg">#{{ order.id }}</p>
+                    <p class="text-xs text-secondary">{{ formatOrderDate(order.created_at) }}</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span 
+                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border"
+                    :class="getStatusOption(order.status).color"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full bg-current opacity-60"></span>
+                    {{ getStatusOption(order.status).label }}
+                  </span>
+                  <p class="font-bold text-primary">{{ formatCurrency(order.total) }}</p>
+                </div>
+              </div>
+
+              <!-- Order Items Preview -->
+              <div class="p-5 border-b border-soft-stone/50">
+                <div class="flex flex-wrap gap-3">
+                  <div 
+                    v-for="(item, idx) in order.items" 
+                    :key="idx" 
+                    class="flex items-center gap-3 bg-surface-container-low px-3 py-2 border border-soft-stone/50 rounded-sm"
+                  >
+                    <img 
+                      v-if="item.image" 
+                      :src="item.image" 
+                      :alt="item.name" 
+                      class="w-10 h-10 object-cover rounded-sm border border-soft-stone"
+                    >
+                    <div>
+                      <p class="text-xs font-medium truncate max-w-[150px]">{{ item.name }}</p>
+                      <p class="text-[10px] text-secondary">Qtd: {{ item.quantity }} · {{ formatCurrency(item.price) }}</p>
+                    </div>
+                  </div>
+                </div>
+                <p class="text-xs text-secondary mt-2">{{ orderTotalItems(order) }} {{ orderTotalItems(order) === 1 ? 'item' : 'itens' }} · Subtotal: {{ formatCurrency(order.subtotal) }}</p>
+              </div>
+
+              <!-- Order Actions -->
+              <div class="p-5 space-y-4">
+                <!-- Status Update -->
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                  <label class="text-xs font-label-caps text-secondary tracking-wider flex-shrink-0 w-32">ALTERAR STATUS</label>
+                  <div class="flex flex-wrap gap-2">
+                    <button 
+                      v-for="option in orderStatusOptions" 
+                      :key="option.value"
+                      @click="handleUpdateOrderStatus(order, option.value)"
+                      :disabled="savingOrderId === order.id"
+                      class="px-4 py-2 text-[10px] font-bold uppercase tracking-wider border rounded-sm transition-all"
+                      :class="[
+                        order.status === option.value 
+                          ? option.color + ' ring-2 ring-offset-1 ring-current/20' 
+                          : 'bg-white border-soft-stone text-secondary hover:border-primary hover:text-primary',
+                        savingOrderId === order.id ? 'opacity-50 pointer-events-none' : ''
+                      ]"
+                    >
+                      {{ option.label }}
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Tracking Code -->
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                  <label class="text-xs font-label-caps text-secondary tracking-wider flex-shrink-0 w-32">CÓD. RASTREIO</label>
+                  <input 
+                    v-model="order.tracking_code"
+                    type="text" 
+                    placeholder="Ex: BR123456789XX" 
+                    class="flex-1 border border-soft-stone px-4 py-2.5 text-sm focus:outline-none focus:border-primary w-full sm:w-auto"
+                  >
+                </div>
+
+                <!-- Notes -->
+                <div class="flex flex-col sm:flex-row items-start gap-3">
+                  <label class="text-xs font-label-caps text-secondary tracking-wider flex-shrink-0 w-32 pt-2">NOTAS</label>
+                  <textarea 
+                    v-model="order.notes"
+                    placeholder="Notas internas sobre o pedido..." 
+                    rows="2"
+                    class="flex-1 border border-soft-stone px-4 py-2.5 text-sm focus:outline-none focus:border-primary resize-none w-full sm:w-auto"
+                  ></textarea>
+                </div>
+
+                <!-- Save Button -->
+                <div class="flex justify-end">
+                  <button 
+                    @click="handleSaveOrderTracking(order)"
+                    :disabled="savingOrderId === order.id"
+                    class="bg-primary text-white px-6 py-2.5 font-label-caps text-[10px] tracking-widest hover:bg-deep-onyx active:scale-95 transition-all flex items-center gap-2"
+                    :class="{ 'opacity-50 pointer-events-none': savingOrderId === order.id }"
+                  >
+                    <span v-if="savingOrderId === order.id" class="material-symbols-outlined animate-spin text-sm">sync</span>
+                    SALVAR RASTREIO E NOTAS
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>

@@ -1,4 +1,5 @@
 import Stripe from 'stripe'
+import { createClient } from '@supabase/supabase-js'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
@@ -20,6 +21,17 @@ export default defineEventHandler(async (event) => {
   }
 
   const stripe = new Stripe(stripeSecret)
+
+  // Inicializar Supabase para salvar o pedido
+  const supabaseUrl = process.env.SUPABASE_URL
+  const supabaseKey = process.env.SUPABASE_KEY
+  if (!supabaseUrl || !supabaseKey) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Configuração do Supabase ausente no servidor (.env).'
+    })
+  }
+  const supabase = createClient(supabaseUrl, supabaseKey)
 
   // Detectar a URL base atual da aplicação de forma dinâmica para sucesso/cancelamento
   const headers = getRequestHeaders(event)
@@ -50,12 +62,37 @@ export default defineEventHandler(async (event) => {
       }
     })
 
+    // Calcular subtotal e total
+    const subtotal = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0)
+    const total = subtotal * 0.95 // 5% de desconto à vista
+
     const session = await stripe.checkout.sessions.create({
       line_items: lineItems,
       mode: 'payment',
-      success_url: `${baseUrl}/checkout/success`,
+      success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/checkout/cancel`,
     })
+
+    // Salvar o pedido na tabela orders do Supabase
+    const { error: dbError } = await supabase
+      .from('orders')
+      .insert([{
+        stripe_session_id: session.id,
+        items: items.map((item: any) => ({
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          image: item.image
+        })),
+        subtotal,
+        total,
+        status: 'pendente'
+      }])
+
+    if (dbError) {
+      console.error('Erro ao salvar pedido no Supabase:', dbError)
+      // Não interrompe o fluxo — o pagamento já foi criado no Stripe
+    }
 
     return {
       success: true,

@@ -10,6 +10,7 @@
           src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9glF-h10U3EKLc9s_Tuoc4vkAruhbL4hQffNpsIAux2zoX7LQcoUvD7fCrht5oLf-GCSVHadrbZOILsbDQM3cQwabxpdI-s5hKP1Tdu5q1xDKuQcn7Wku6YQWAeUJFsKFXU5bUqvVG2a-Q6vm6OsrnWq5c57MMZbvrRLDaUjo03Q0Rtye5ZLVF2wSzNs207dnfQNJCVZntrtDNjDggu5nEXe4zPZ7Q61lPfd1sIwXNBwO1z6O7uR-k7z7UyU-4vbK4yM6nDa_fz9R"
         >
         <ul class="flex flex-col space-y-4 font-label-caps text-label-caps tracking-widest font-bold">
+          <li><NuxtLink class="hover:text-champagne-gold transition-colors" to="/meu-pedido">MEU PEDIDO</NuxtLink></li>
           <li><a class="hover:text-champagne-gold transition-colors" href="#">CONTATO</a></li>
           <li><a class="hover:text-champagne-gold transition-colors" href="#">PROMOÇÕES</a></li>
           <li><a class="hover:text-champagne-gold transition-colors" href="#">TROCAS E DEVOLUÇÕES</a></li>
@@ -86,6 +87,7 @@
         <div class="flex flex-col space-y-5">
           <h4 class="font-label-caps text-label-caps xl:text-[13px] 3xl:text-[15px] text-primary font-bold tracking-widest mb-2">NAVEGAÇÃO</h4>
           <ul class="flex flex-col space-y-3 font-label-caps text-[11px] xl:text-[12px] 3xl:text-[14px] tracking-widest font-bold">
+            <li><NuxtLink class="hover:text-champagne-gold transition-colors" to="/meu-pedido">MEU PEDIDO</NuxtLink></li>
             <li><a class="hover:text-champagne-gold transition-colors" href="#">CONTATO</a></li>
             <li><a class="hover:text-champagne-gold transition-colors" href="#">PROMOÇÕES</a></li>
             <li><a class="hover:text-champagne-gold transition-colors" href="#">TROCAS E DEVOLUÇÕES</a></li>
