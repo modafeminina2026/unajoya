@@ -62,6 +62,10 @@ export default defineEventHandler(async (event) => {
       }
     })
 
+    const customerName = body.customerName
+    const customerEmail = body.customerEmail
+    const customerPhone = body.customerPhone
+
     // Calcular subtotal e total
     const subtotal = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0)
     const total = subtotal * 0.95 // 5% de desconto à vista
@@ -71,6 +75,13 @@ export default defineEventHandler(async (event) => {
       mode: 'payment',
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/checkout/cancel`,
+      payment_method_options: {
+        card: {
+          installments: {
+            enabled: true
+          }
+        }
+      }
     })
 
     // Gerar código de rastreio único de 8 caracteres
@@ -110,7 +121,10 @@ export default defineEventHandler(async (event) => {
         })),
         subtotal,
         total,
-        status: 'pendente'
+        status: 'pendente',
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone
       }])
 
     if (dbError) {

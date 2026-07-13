@@ -2,6 +2,7 @@
 const { isDrawerOpen, closeDrawer } = useDrawer()
 
 const menuItems = ref([
+  { label: 'MEUS PEDIDOS', path: '/meu-pedido', hasSubmenu: false, isOpen: false, subcategories: [] },
   { label: 'NOVIDADES', path: '#', hasSubmenu: false, isOpen: false, subcategories: [] },
   { 
     label: 'COLARES', 
@@ -28,6 +29,10 @@ const toggleSubmenu = (index: number, event: Event) => {
     menuItems.value[index].isOpen = !menuItems.value[index].isOpen
   } else {
     closeDrawer()
+    if (menuItems.value[index].path.startsWith('/')) {
+      event.preventDefault()
+      navigateTo(menuItems.value[index].path)
+    }
   }
 }
 </script>

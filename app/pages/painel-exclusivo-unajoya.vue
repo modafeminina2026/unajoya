@@ -1899,11 +1899,16 @@ onMounted(() => {
               class="bg-white border border-soft-stone shadow-sm overflow-hidden"
             >
               <!-- Order Header -->
-              <div class="p-5 border-b border-soft-stone flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div class="flex items-center gap-4">
+              <div class="p-5 border-b border-soft-stone flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div class="flex items-start gap-4">
                   <div>
-                    <p class="font-bold text-primary text-lg">#{{ order.id }}</p>
+                    <p class="font-bold text-primary text-lg">#{{ order.id }} (Código: {{ order.tracking_code }})</p>
                     <p class="text-xs text-secondary">{{ formatOrderDate(order.created_at) }}</p>
+                    <div class="mt-2 text-xs text-secondary space-y-1">
+                      <p v-if="order.customer_name"><strong>Cliente:</strong> {{ order.customer_name }}</p>
+                      <p v-if="order.customer_email"><strong>E-mail:</strong> {{ order.customer_email }}</p>
+                      <p v-if="order.customer_phone"><strong>WhatsApp/Tel:</strong> {{ order.customer_phone }}</p>
+                    </div>
                   </div>
                 </div>
                 <div class="flex items-center gap-3">

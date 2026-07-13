@@ -39,6 +39,9 @@ const navLinks = [
         <button class="text-primary hover:opacity-70 transition-opacity active:scale-95 duration-150 p-2" aria-label="Buscar">
           <span class="material-symbols-outlined text-2xl">search</span>
         </button>
+        <NuxtLink to="/meu-pedido" class="text-primary hover:opacity-70 transition-opacity active:scale-95 duration-150 p-2 flex items-center justify-center" aria-label="Meus Pedidos">
+          <span class="material-symbols-outlined text-2xl">receipt_long</span>
+        </NuxtLink>
         <NuxtLink to="/checkout" class="text-primary hover:opacity-70 transition-opacity active:scale-95 duration-150 p-2 relative flex items-center justify-center" aria-label="Ver Sacola">
           <span class="material-symbols-outlined text-2xl">shopping_bag</span>
           <!-- Dynamic Badge -->
@@ -69,6 +72,10 @@ const navLinks = [
             <span class="material-symbols-outlined text-xl">search</span>
             <span class="hidden xl:inline">BUSCAR</span>
           </button>
+          <NuxtLink to="/meu-pedido" class="text-primary hover:opacity-70 transition-opacity active:scale-95 duration-150 p-2 flex items-center gap-2 font-label-caps text-label-caps tracking-widest" aria-label="Meus Pedidos">
+            <span class="material-symbols-outlined text-xl">receipt_long</span>
+            <span>MEUS PEDIDOS</span>
+          </NuxtLink>
           <NuxtLink to="/checkout" class="text-primary hover:opacity-70 transition-opacity active:scale-95 duration-150 p-2 relative flex items-center gap-2 font-label-caps text-label-caps tracking-widest" aria-label="Ver Sacola">
             <span class="material-symbols-outlined text-xl">shopping_bag</span>
             <span class="hidden xl:inline">SACOLA</span>

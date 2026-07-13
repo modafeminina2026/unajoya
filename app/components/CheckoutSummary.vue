@@ -14,6 +14,10 @@ const calculatedShipping = ref<string | null>(null)
 const calculatingShipping = ref(false)
 const checkoutLoading = ref(false)
 
+const customerName = ref('')
+const customerEmail = ref('')
+const customerPhone = ref('')
+
 const formatCurrency = (val: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 }
@@ -38,11 +42,19 @@ const handleCheckout = async () => {
     return
   }
 
+  if (!customerName.value.trim() || !customerEmail.value.trim() || !customerPhone.value.trim()) {
+    alert('Por favor, preencha todos os campos de contato (Nome, E-mail e Telefone) para prosseguir.')
+    return
+  }
+
   checkoutLoading.value = true
   try {
     const response = await $fetch<{ success: boolean; url: string }>('/api/checkout', {
       method: 'POST',
       body: {
+        customerName: customerName.value.trim(),
+        customerEmail: customerEmail.value.trim(),
+        customerPhone: customerPhone.value.trim(),
         items: items.value.map(item => ({
           name: item.product.name,
           price: item.product.price,
@@ -70,6 +82,46 @@ const handleCheckout = async () => {
   <div class="bg-white rounded-lg border border-soft-stone p-6 space-y-6 card-shadow">
     <h3 class="font-headline-md text-headline-md border-b border-soft-stone pb-4 font-medium">Resumo</h3>
     
+    <!-- Dados de Contato -->
+    <div class="space-y-4 border-b border-soft-stone pb-6">
+      <h4 class="font-label-caps text-secondary text-xs font-bold tracking-wider">DADOS DE CONTATO</h4>
+      
+      <div class="space-y-3">
+        <div>
+          <label class="text-[10px] text-secondary font-label-caps tracking-wider block mb-1">NOME COMPLETO</label>
+          <input 
+            v-model="customerName"
+            type="text" 
+            placeholder="Nome Completo" 
+            class="w-full border border-soft-stone px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors rounded-none"
+            required
+          >
+        </div>
+
+        <div>
+          <label class="text-[10px] text-secondary font-label-caps tracking-wider block mb-1">E-MAIL</label>
+          <input 
+            v-model="customerEmail"
+            type="email" 
+            placeholder="exemplo@email.com" 
+            class="w-full border border-soft-stone px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors rounded-none"
+            required
+          >
+        </div>
+
+        <div>
+          <label class="text-[10px] text-secondary font-label-caps tracking-wider block mb-1">TELEFONE / WHATSAPP</label>
+          <input 
+            v-model="customerPhone"
+            type="tel" 
+            placeholder="(11) 99999-9999" 
+            class="w-full border border-soft-stone px-3 py-2 text-sm focus:outline-none focus:border-primary transition-colors rounded-none"
+            required
+          >
+        </div>
+      </div>
+    </div>
+
     <div class="space-y-4">
       <!-- Subtotal -->
       <div class="flex justify-between items-center">
