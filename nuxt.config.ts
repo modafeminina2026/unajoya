@@ -2,6 +2,12 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
+  runtimeConfig: {
+    public: {
+      supabaseUrl: process.env.SUPABASE_URL || 'https://hkczlyvzicoklbebhnfo.supabase.co',
+      supabaseKey: process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrY3pseXZ6aWNva2xiZWJobmZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5NzAwMzYsImV4cCI6MjA5NDU0NjAzNn0.t8MalZsAlzcNbZu3kjvnpyS0IGO6oroNyXDg_cNgZO4'
+    }
+  },
   modules: ['@nuxtjs/tailwindcss'],
   css: ['~/assets/css/main.css'],
   app: {
