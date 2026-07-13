@@ -73,11 +73,35 @@ export default defineEventHandler(async (event) => {
       cancel_url: `${baseUrl}/checkout/cancel`,
     })
 
+    // Gerar código de rastreio único de 8 caracteres
+    const generateTrackingCode = (): string => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+      let code = ''
+      for (let i = 0; i < 8; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length))
+      }
+      return code
+    }
+
+    let trackingCode = generateTrackingCode()
+    // Verificar unicidade no banco (retry até encontrar um código único)
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { data: existing } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('tracking_code', trackingCode)
+        .maybeSingle()
+      
+      if (!existing) break
+      trackingCode = generateTrackingCode()
+    }
+
     // Salvar o pedido na tabela orders do Supabase
     const { error: dbError } = await supabase
       .from('orders')
       .insert([{
         stripe_session_id: session.id,
+        tracking_code: trackingCode,
         items: items.map((item: any) => ({
           name: item.name,
           price: item.price,

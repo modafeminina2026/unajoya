@@ -58,14 +58,20 @@ const isStepCurrent = (index: number) => {
 }
 
 onMounted(async () => {
-  const orderId = route.params.id as string
-  if (orderId) {
+  const param = (route.params.id as string).trim()
+  if (param) {
     try {
-      const { data, error } = await client
-        .from('orders')
-        .select('*')
-        .eq('id', Number(orderId))
-        .single()
+      let query = client.from('orders').select('*')
+      
+      if (!isNaN(Number(param))) {
+        // Se for número, busca por ID ou código de rastreio
+        query = query.or(`id.eq.${Number(param)},tracking_code.eq.${param.toUpperCase()}`)
+      } else {
+        // Se não for número, busca por código de rastreio
+        query = query.eq('tracking_code', param.toUpperCase())
+      }
+
+      const { data, error } = await query.maybeSingle()
 
       if (error) throw error
       if (data) {

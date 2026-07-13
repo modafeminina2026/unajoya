@@ -10,14 +10,14 @@ const errorMessage = ref('')
 
 const handleSearch = () => {
   errorMessage.value = ''
-  const id = orderId.value.trim().replace('#', '')
+  const searchVal = orderId.value.trim().replace('#', '')
   
-  if (!id || isNaN(Number(id))) {
-    errorMessage.value = 'Por favor, insira um número de pedido válido.'
+  if (!searchVal) {
+    errorMessage.value = 'Por favor, insira o número do pedido ou código de rastreio.'
     return
   }
 
-  navigateTo(`/pedido/${id}`)
+  navigateTo(`/pedido/${searchVal}`)
 }
 </script>
 
@@ -37,7 +37,7 @@ const handleSearch = () => {
           <div>
             <h2 class="font-display-lg text-2xl lg:text-3xl text-primary italic">Consultar Pedido</h2>
             <p class="text-secondary text-sm mt-2 leading-relaxed">
-              Insira o número do seu pedido para acompanhar o status e as informações de envio.
+              Insira o número do seu pedido ou código de rastreio para acompanhar o status e as informações de envio.
             </p>
           </div>
         </div>
@@ -45,15 +45,15 @@ const handleSearch = () => {
         <!-- Formulário de Busca -->
         <form @submit.prevent="handleSearch" class="space-y-4">
           <div>
-            <label class="text-xs font-label-caps text-secondary tracking-wider block mb-2">NÚMERO DO PEDIDO</label>
+            <label class="text-xs font-label-caps text-secondary tracking-wider block mb-2">NÚMERO DO PEDIDO OU CÓDIGO DE RASTREIO</label>
             <div class="flex gap-3">
               <div class="relative flex-1">
                 <span class="absolute left-4 top-1/2 -translate-y-1/2 text-secondary/50 font-bold text-lg">#</span>
                 <input 
                   v-model="orderId"
                   type="text" 
-                  placeholder="Ex: 1" 
-                  class="w-full border border-soft-stone pl-10 pr-4 py-4 text-lg focus:outline-none focus:border-primary transition-colors"
+                  placeholder="Ex: 1 ou ABC123XY" 
+                  class="w-full border border-soft-stone pl-10 pr-4 py-4 text-lg focus:outline-none focus:border-primary transition-colors uppercase"
                   @keyup.enter="handleSearch"
                   autofocus
                 >
@@ -78,7 +78,7 @@ const handleSearch = () => {
         <!-- Dica -->
         <div class="border-t border-soft-stone pt-6 text-center">
           <p class="text-xs text-secondary leading-relaxed">
-            O número do pedido é exibido na tela de confirmação de pagamento. Se você não lembra o número, entre em contato conosco pelo nosso WhatsApp.
+            O número do pedido ou o código de rastreio de 8 dígitos é exibido na tela de confirmação de pagamento. Se você não lembra os dados, entre em contato conosco pelo nosso WhatsApp.
           </p>
         </div>
 
