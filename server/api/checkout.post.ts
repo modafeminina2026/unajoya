@@ -51,9 +51,6 @@ export default defineEventHandler(async (event) => {
     })
 
     const session = await stripe.checkout.sessions.create({
-      automatic_payment_methods: {
-        enabled: true,
-      },
       line_items: lineItems,
       mode: 'payment',
       success_url: `${baseUrl}/checkout/success`,
