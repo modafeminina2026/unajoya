@@ -51,7 +51,9 @@ export default defineEventHandler(async (event) => {
     })
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card', 'pix'], // Aceita Cartão e Pix
+      automatic_payment_methods: {
+        enabled: true,
+      },
       line_items: lineItems,
       mode: 'payment',
       success_url: `${baseUrl}/checkout/success`,
