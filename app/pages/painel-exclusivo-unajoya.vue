@@ -15,6 +15,8 @@ interface AdminProduct {
   duration: number // em dias
   image: string
   createdAt: Date
+  category_id: number | null
+  category_name?: string
 }
 
 const { client } = useSupabase()
@@ -38,7 +40,8 @@ const form = ref({
   stock: null as number | null,
   promo: false,
   duration: 15,
-  image: mockImages[0]
+  image: mockImages[0],
+  category_id: null as number | null
 })
 
 const isEditing = computed(() => form.value.id !== null)
@@ -98,7 +101,7 @@ const fetchProducts = async () => {
   try {
     const { data, error } = await client
       .from('products')
-      .select('*')
+      .select('*, categories(name)')
       .order('id', { ascending: false })
     
     if (error) throw error
@@ -112,7 +115,9 @@ const fetchProducts = async () => {
       promo: p.promo,
       duration: Number(p.duration),
       image: p.image || '',
-      createdAt: new Date(p.created_at)
+      createdAt: new Date(p.created_at),
+      category_id: p.category_id,
+      category_name: p.categories?.name || 'Nenhuma'
     }))
   } catch (err) {
     console.error('Erro ao buscar produtos:', err)
@@ -170,7 +175,8 @@ const handlePublish = async () => {
           stock: Number(form.value.stock),
           promo: form.value.promo,
           duration: Number(form.value.duration),
-          image: form.value.image
+          image: form.value.image,
+          category_id: form.value.category_id ? Number(form.value.category_id) : null
         })
         .eq('id', form.value.id)
       
@@ -186,7 +192,8 @@ const handlePublish = async () => {
           stock: Number(form.value.stock),
           promo: form.value.promo,
           duration: Number(form.value.duration),
-          image: form.value.image
+          image: form.value.image,
+          category_id: form.value.category_id ? Number(form.value.category_id) : null
         }])
       
       if (error) throw error
@@ -209,7 +216,8 @@ const handleEdit = (product: AdminProduct) => {
     stock: product.stock,
     promo: product.promo,
     duration: product.duration,
-    image: product.image
+    image: product.image,
+    category_id: product.category_id || null
   }
 }
 
@@ -243,7 +251,8 @@ const clearForm = () => {
     stock: null,
     promo: false,
     duration: 15,
-    image: mockImages[0]
+    image: mockImages[0],
+    category_id: null
   }
 }
 
@@ -252,7 +261,144 @@ const formatCurrency = (val: number) => {
 }
 
 // Controle de abas do painel
-const currentTab = ref('products') // 'products', 'about', 'carousel', 'lookbook' ou 'orders'
+const currentTab = ref('products') // 'products', 'categories', 'about', 'carousel', 'lookbook' ou 'orders'
+
+// ============================================================
+// ABA CATEGORIAS
+// ============================================================
+interface Category {
+  id: number
+  name: string
+  slug: string
+  sort_order: number
+  active: boolean
+  created_at?: string
+}
+
+const categories = ref<Category[]>([])
+const loadingCategories = ref(false)
+
+const categoryForm = ref({
+  id: null as number | null,
+  name: '',
+  slug: '',
+  sort_order: 0,
+  active: true
+})
+
+const isEditingCategory = computed(() => categoryForm.value.id !== null)
+
+const autoGenerateSlug = () => {
+  categoryForm.value.slug = categoryForm.value.name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .replace(/[^a-z0-9\s-]/g, '') // remove caracteres especiais
+    .replace(/\s+/g, '-') // substitui espaços por hífens
+    .replace(/-+/g, '-') // remove hífens duplicados
+    .trim()
+}
+
+const fetchCategories = async () => {
+  loadingCategories.value = true
+  try {
+    const { data, error } = await client
+      .from('categories')
+      .select('*')
+      .order('sort_order', { ascending: true })
+    
+    if (error) throw error
+    categories.value = data || []
+  } catch (err) {
+    console.error('Erro ao buscar categorias:', err)
+  } finally {
+    loadingCategories.value = false
+  }
+}
+
+const handleSaveCategory = async () => {
+  if (!categoryForm.value.name.trim() || !categoryForm.value.slug.trim()) {
+    alert('Por favor, preencha o nome e o slug da categoria.')
+    return
+  }
+
+  try {
+    if (isEditingCategory.value) {
+      const { error } = await client
+        .from('categories')
+        .update({
+          name: categoryForm.value.name.trim(),
+          slug: categoryForm.value.slug.trim(),
+          sort_order: Number(categoryForm.value.sort_order),
+          active: categoryForm.value.active
+        })
+        .eq('id', categoryForm.value.id)
+      
+      if (error) throw error
+      alert('Categoria atualizada com sucesso!')
+    } else {
+      const { error } = await client
+        .from('categories')
+        .insert([{
+          name: categoryForm.value.name.trim(),
+          slug: categoryForm.value.slug.trim(),
+          sort_order: Number(categoryForm.value.sort_order),
+          active: categoryForm.value.active
+        }])
+      
+      if (error) throw error
+      alert('Categoria criada com sucesso!')
+    }
+
+    clearCategoryForm()
+    await fetchCategories()
+  } catch (err) {
+    console.error('Erro ao salvar categoria:', err)
+    alert('Erro ao salvar categoria no banco de dados. Verifique se o slug é único.')
+  }
+}
+
+const handleEditCategory = (cat: Category) => {
+  categoryForm.value = {
+    id: cat.id,
+    name: cat.name,
+    slug: cat.slug,
+    sort_order: cat.sort_order,
+    active: cat.active
+  }
+}
+
+const handleDeleteCategory = async (id: number) => {
+  if (confirm('Tem certeza que deseja excluir esta categoria? Os produtos vinculados a ela não serão excluídos, apenas perderão o vínculo.')) {
+    try {
+      const { error } = await client
+        .from('categories')
+        .delete()
+        .eq('id', id)
+      
+      if (error) throw error
+      
+      if (categoryForm.value.id === id) {
+        clearCategoryForm()
+      }
+      await fetchCategories()
+      alert('Categoria excluída com sucesso!')
+    } catch (err) {
+      console.error('Erro ao deletar categoria:', err)
+      alert('Erro ao deletar categoria do banco de dados.')
+    }
+  }
+}
+
+const clearCategoryForm = () => {
+  categoryForm.value = {
+    id: null,
+    name: '',
+    slug: '',
+    sort_order: 0,
+    active: true
+  }
+}
 
 // Estado do formulário do Sobre Nós
 const aboutForm = ref({
@@ -770,6 +916,7 @@ onMounted(() => {
   fetchSlides()
   fetchLookbook()
   fetchOrders()
+  fetchCategories()
 })
 </script>
 
@@ -838,6 +985,15 @@ onMounted(() => {
             </a>
             <a 
               class="flex items-center gap-4 py-4 transition-all" 
+              :class="currentTab === 'categories' ? 'text-primary font-bold border-b border-primary' : 'text-secondary hover:text-primary'"
+              href="#" 
+              @click="currentTab = 'categories'; isSidebarOpen = false"
+            >
+              <span class="material-symbols-outlined">category</span>
+              <span class="font-label-caps">CATEGORIAS</span>
+            </a>
+            <a 
+              class="flex items-center gap-4 py-4 transition-all" 
               :class="currentTab === 'carousel' ? 'text-primary font-bold border-b border-primary' : 'text-secondary hover:text-primary'"
               href="#" 
               @click="currentTab = 'carousel'; isSidebarOpen = false"
@@ -890,6 +1046,12 @@ onMounted(() => {
             <h2 class="font-display-lg text-3xl md:text-4xl text-primary mb-2 italic">Gerenciamento do Catálogo</h2>
             <p class="text-on-surface-variant font-body-md max-w-xl text-secondary">
               Curadoria da experiência 'Una Joya'. Adicione novas peças artesanais exclusivas e gerencie seu tempo de exibição na vitrine pública.
+            </p>
+          </div>
+          <div v-else-if="currentTab === 'categories'">
+            <h2 class="font-display-lg text-3xl md:text-4xl text-primary mb-2 italic">Gerenciamento de Categorias</h2>
+            <p class="text-on-surface-variant font-body-md max-w-xl text-secondary">
+              Gerencie as categorias de produtos da sua vitrine pública. Defina a ordem e o status de exibição de cada uma.
             </p>
           </div>
           <div v-else-if="currentTab === 'carousel'">
@@ -972,6 +1134,21 @@ onMounted(() => {
                 {{ loadingAbout ? 'SALVANDO...' : 'SALVAR SOBRE NÓS' }}
               </button>
             </template>
+            <template v-else-if="currentTab === 'categories'">
+              <button 
+                v-if="isEditingCategory" 
+                @click="clearCategoryForm"
+                class="w-full sm:w-auto border border-soft-stone px-8 py-4 font-label-caps text-secondary hover:bg-soft-stone/20 active:scale-95 transition-all text-xs text-center"
+              >
+                CANCELAR EDIÇÃO
+              </button>
+              <button 
+                @click="handleSaveCategory" 
+                class="w-full sm:w-auto bg-primary text-pure-white px-8 py-4 font-label-caps hover:bg-deep-onyx active:scale-95 transition-all text-xs text-center"
+              >
+                {{ isEditingCategory ? 'SALVAR ALTERAÇÕES' : 'CRIAR CATEGORIA' }}
+              </button>
+            </template>
           </div>
         </div>
 
@@ -1012,6 +1189,24 @@ onMounted(() => {
                   placeholder="Descreva o processo de produção, as pedras naturais utilizadas e a inspiração da peça..." 
                   rows="3"
                 ></textarea>
+              </div>
+
+              <!-- Category Selector -->
+              <div class="group relative border-b border-soft-stone focus-within:border-primary py-2 transition-colors">
+                <label class="block font-label-caps text-[10px] text-secondary tracking-widest font-bold mb-1">CATEGORIA</label>
+                <select 
+                  v-model="form.category_id"
+                  class="w-full bg-transparent border-none p-0 focus:ring-0 font-body-md text-primary text-sm focus:outline-none appearance-none"
+                >
+                  <option :value="null">Nenhuma Categoria</option>
+                  <option 
+                    v-for="cat in categories" 
+                    :key="cat.id" 
+                    :value="cat.id"
+                  >
+                    {{ cat.name }}
+                  </option>
+                </select>
               </div>
 
               <!-- Price and Stock Row -->
@@ -1226,6 +1421,7 @@ onMounted(() => {
               <thead>
                 <tr class="text-left border-b border-soft-stone bg-surface-container-low">
                   <th class="py-4 px-6 font-label-caps text-[10px] text-secondary tracking-widest font-bold">JOIA / PRODUTO</th>
+                  <th class="py-4 px-6 font-label-caps text-[10px] text-secondary tracking-widest font-bold">CATEGORIA</th>
                   <th class="py-4 px-6 font-label-caps text-[10px] text-secondary tracking-widest font-bold">ESTOQUE</th>
                   <th class="py-4 px-6 font-label-caps text-[10px] text-secondary tracking-widest font-bold">EXPIRAÇÃO</th>
                   <th class="py-4 px-6 font-label-caps text-[10px] text-secondary tracking-widest font-bold">PREÇO</th>
@@ -1247,6 +1443,7 @@ onMounted(() => {
                       <span v-if="p.promo" class="text-[9px] font-label-caps text-champagne-gold tracking-widest font-bold mt-0.5">DESTAQUE ATIVO</span>
                     </div>
                   </td>
+                  <td class="py-4 px-6 text-secondary font-semibold">{{ p.category_name || 'Nenhuma' }}</td>
                   <td class="py-4 px-6 text-secondary font-semibold">{{ p.stock }} Unidades</td>
                   <td class="py-4 px-6">
                     <span 
@@ -1278,7 +1475,7 @@ onMounted(() => {
                   </td>
                 </tr>
                 <tr v-if="products.length === 0">
-                  <td colspan="5" class="py-12 text-center text-secondary font-body-md text-sm">
+                  <td colspan="6" class="py-12 text-center text-secondary font-body-md text-sm">
                     Nenhuma joia publicada no catálogo ainda.
                   </td>
                 </tr>
@@ -1286,6 +1483,135 @@ onMounted(() => {
             </table>
           </div>
         </section>
+        </div>
+
+        <!-- Categories Tab Content -->
+        <div v-else-if="currentTab === 'categories'" class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          <!-- Form -->
+          <section class="lg:col-span-5 bg-surface-container-low p-6 sm:p-8 md:p-12 border border-soft-stone fade-in shadow-sm">
+            <div class="flex items-center gap-3 mb-10 border-b border-soft-stone pb-4">
+              <span class="material-symbols-outlined text-primary">
+                {{ isEditingCategory ? 'edit_note' : 'add_circle' }}
+              </span>
+              <h3 class="font-label-caps text-primary tracking-widest font-bold">
+                {{ isEditingCategory ? 'EDITAR CATEGORIA' : 'NOVA CATEGORIA' }}
+              </h3>
+            </div>
+            
+            <form @submit.prevent class="space-y-10">
+              <!-- Name -->
+              <div class="group relative border-b border-soft-stone focus-within:border-primary py-2 transition-colors">
+                <label class="block font-label-caps text-[10px] text-secondary tracking-widest font-bold mb-1">NOME DA CATEGORIA</label>
+                <input 
+                  v-model="categoryForm.name"
+                  @input="autoGenerateSlug"
+                  class="w-full bg-transparent border-none p-0 focus:ring-0 font-headline-md text-primary placeholder:opacity-30 placeholder:text-primary text-lg" 
+                  placeholder="Ex: Colares" 
+                  type="text"
+                  required
+                />
+              </div>
+
+              <!-- Slug -->
+              <div class="group relative border-b border-soft-stone focus-within:border-primary py-2 transition-colors">
+                <label class="block font-label-caps text-[10px] text-secondary tracking-widest font-bold mb-1">SLUG (URL)</label>
+                <input 
+                  v-model="categoryForm.slug"
+                  class="w-full bg-transparent border-none p-0 focus:ring-0 font-body-md text-primary text-sm" 
+                  placeholder="ex-colares" 
+                  type="text"
+                  required
+                />
+              </div>
+
+              <!-- Sort Order -->
+              <div class="group relative border-b border-soft-stone focus-within:border-primary py-2 transition-colors">
+                <label class="block font-label-caps text-[10px] text-secondary tracking-widest font-bold mb-1">ORDEM DE EXIBIÇÃO</label>
+                <input 
+                  v-model.number="categoryForm.sort_order"
+                  class="w-full bg-transparent border-none p-0 focus:ring-0 font-body-md text-primary text-sm" 
+                  placeholder="0" 
+                  type="number"
+                  required
+                />
+              </div>
+
+              <!-- Active Toggle -->
+              <div class="flex items-center justify-between py-4 border-b border-soft-stone">
+                <div>
+                  <span class="font-label-caps text-[11px] text-primary tracking-widest font-bold">ATIVO</span>
+                  <p class="text-[10px] text-secondary tracking-wider uppercase mt-1">Exibir no menu de navegação da loja</p>
+                </div>
+                <button 
+                  type="button" 
+                  class="w-12 h-6 rounded-full p-1 transition-colors relative flex items-center"
+                  :class="categoryForm.active ? 'bg-[#202223]' : 'bg-soft-stone'"
+                  @click="categoryForm.active = !categoryForm.active"
+                >
+                  <div 
+                    class="w-4 h-4 bg-pure-white rounded-full transition-transform shadow-sm"
+                    :class="categoryForm.active ? 'translate-x-6' : 'translate-x-0'"
+                  ></div>
+                </button>
+              </div>
+
+              <!-- Save Button -->
+              <button 
+                type="button"
+                @click="handleSaveCategory"
+                class="w-full bg-primary text-pure-white py-5 font-label-caps text-xs md:text-sm tracking-[0.2em] hover:bg-deep-onyx active:scale-[0.98] transition-all flex items-center justify-center gap-3 font-bold"
+              >
+                {{ isEditingCategory ? 'SALVAR ALTERAÇÕES' : 'CRIAR CATEGORIA' }}
+              </button>
+            </form>
+          </section>
+
+          <!-- List -->
+          <section class="lg:col-span-7 bg-surface-container-low p-6 sm:p-8 border border-soft-stone fade-in shadow-sm">
+            <h3 class="font-label-caps text-primary tracking-widest font-bold mb-6">CATEGORIAS CADASTRADAS</h3>
+            
+            <div v-if="loadingCategories" class="flex justify-center items-center py-12">
+              <span class="material-symbols-outlined animate-spin text-3xl text-secondary">sync</span>
+            </div>
+            
+            <div v-else-if="categories.length === 0" class="text-center py-12 text-secondary text-sm">
+              Nenhuma categoria cadastrada.
+            </div>
+            
+            <div v-else class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-soft-stone font-label-caps text-[10px] text-secondary tracking-wider">
+                    <th class="pb-4 font-bold">ORDEM</th>
+                    <th class="pb-4 font-bold">NOME</th>
+                    <th class="pb-4 font-bold">SLUG</th>
+                    <th class="pb-4 font-bold">STATUS</th>
+                    <th class="pb-4 font-bold text-right">AÇÕES</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-soft-stone/40">
+                  <tr v-for="cat in categories" :key="cat.id" class="text-sm text-primary hover:bg-soft-stone/10 transition-colors">
+                    <td class="py-4">{{ cat.sort_order }}</td>
+                    <td class="py-4 font-semibold">{{ cat.name }}</td>
+                    <td class="py-4 text-xs font-mono text-secondary">{{ cat.slug }}</td>
+                    <td class="py-4">
+                      <span class="px-2 py-1 text-[10px] font-bold rounded-full" :class="cat.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+                        {{ cat.active ? 'ATIVO' : 'INATIVO' }}
+                      </span>
+                    </td>
+                    <td class="py-4 text-right">
+                      <button @click="handleEditCategory(cat)" class="text-primary hover:text-champagne-gold mr-3">
+                        <span class="material-symbols-outlined text-lg">edit</span>
+                      </button>
+                      <button @click="handleDeleteCategory(cat.id)" class="text-error hover:opacity-85 text-red-600 hover:text-red-800">
+                        <span class="material-symbols-outlined text-lg">delete</span>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
         </div>
 
         <!-- Carousel Tab Content -->

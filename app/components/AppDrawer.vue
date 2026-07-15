@@ -1,40 +1,57 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
 const { isDrawerOpen, closeDrawer } = useDrawer()
+const { client } = useSupabase()
 
-const menuItems = ref([
-  { label: 'MEUS PEDIDOS', path: '/meu-pedido', hasSubmenu: false, isOpen: false, subcategories: [] },
-  { label: 'NOVIDADES', path: '#', hasSubmenu: false, isOpen: false, subcategories: [] },
-  { 
-    label: 'COLARES', 
-    path: '#', 
-    hasSubmenu: true, 
-    isOpen: false, 
-    subcategories: [
-      { label: 'PÉROLAS KESHI', path: '#' },
-      { label: 'PEDRAS NATURAIS', path: '#' },
-      { label: 'CORRENTES E LONGOS', path: '#' }
-    ] 
-  },
-  { label: 'PULSEIRAS', path: '#', hasSubmenu: false, isOpen: false, subcategories: [] },
-  { label: 'BRINCOS', path: '#', hasSubmenu: false, isOpen: false, subcategories: [] },
-  { label: 'BRACELETES', path: '#', hasSubmenu: false, isOpen: false, subcategories: [] },
-  { label: 'ANÉIS', path: '#', hasSubmenu: false, isOpen: false, subcategories: [] },
-  { label: 'ACESSÓRIOS', path: '#', hasSubmenu: false, isOpen: false, subcategories: [] },
-  { label: 'SALE', path: '#', hasSubmenu: false, isOpen: false, subcategories: [] }
-])
+const menuItems = ref<any[]>([])
+const loading = ref(true)
 
-const toggleSubmenu = (index: number, event: Event) => {
-  if (menuItems.value[index].hasSubmenu) {
-    event.preventDefault()
-    menuItems.value[index].isOpen = !menuItems.value[index].isOpen
-  } else {
-    closeDrawer()
-    if (menuItems.value[index].path.startsWith('/')) {
-      event.preventDefault()
-      navigateTo(menuItems.value[index].path)
+const fetchCategories = async () => {
+  try {
+    const { data, error } = await client
+      .from('categories')
+      .select('*')
+      .eq('active', true)
+      .order('sort_order', { ascending: true })
+    
+    if (error) throw error
+    
+    const items = [
+      { label: 'MEUS PEDIDOS', path: '/meu-pedido', hasSubmenu: false, isOpen: false, subcategories: [] }
+    ]
+    
+    if (data) {
+      data.forEach(cat => {
+        items.push({
+          label: cat.name,
+          path: `/categoria/${cat.slug}`,
+          hasSubmenu: false,
+          isOpen: false,
+          subcategories: []
+        })
+      })
     }
+    
+    menuItems.value = items
+  } catch (err) {
+    console.error('Erro ao buscar categorias para o drawer:', err)
+  } finally {
+    loading.value = false
   }
 }
+
+const toggleSubmenu = (index: number, event: Event) => {
+  closeDrawer()
+  if (menuItems.value[index].path.startsWith('/')) {
+    event.preventDefault()
+    navigateTo(menuItems.value[index].path)
+  }
+}
+
+onMounted(() => {
+  fetchCategories()
+})
 </script>
 
 <template>

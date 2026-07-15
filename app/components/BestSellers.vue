@@ -7,6 +7,7 @@ interface Product {
   price: number
   installments: string
   image: string
+  category: { name: string; slug: string } | null
 }
 
 const { client } = useSupabase()
@@ -24,7 +25,7 @@ const fetchProducts = async () => {
   try {
     const { data, error } = await client
       .from('products')
-      .select('*')
+      .select('*, categories(name, slug)')
       .order('id', { ascending: true })
     
     if (error) throw error
@@ -51,7 +52,8 @@ const fetchProducts = async () => {
           name: p.name,
           price,
           installments: price > 0 ? `${instCount}x de R$ ${instPrice} sem juros` : '',
-          image: p.image
+          image: p.image,
+          category: p.categories ? { name: p.categories.name, slug: p.categories.slug } : null
         }
       })
   } catch (err) {
@@ -109,6 +111,15 @@ onMounted(() => {
           >
           <div class="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
         </div>
+        
+        <!-- Category Badge -->
+        <NuxtLink 
+          v-if="product.category" 
+          :to="`/categoria/${product.category.slug}`"
+          class="text-[10px] font-label-caps tracking-[0.15em] text-champagne-gold hover:opacity-80 transition-opacity mb-1 inline-block"
+        >
+          {{ product.category.name }}
+        </NuxtLink>
         
         <!-- Product Title -->
         <h4 class="font-body-md text-[13px] lg:text-[14px] 3xl:text-[16px] text-primary mb-2 line-clamp-2 min-h-[40px] leading-snug group-hover:text-champagne-gold transition-colors duration-300">

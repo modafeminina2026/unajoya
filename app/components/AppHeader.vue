@@ -1,16 +1,33 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
 const { toggleDrawer } = useDrawer()
 const { totalItemsCount, isCartEmpty } = useCart()
+const { client } = useSupabase()
 
-const navLinks = [
-  { label: 'NOVIDADES', path: '#' },
-  { label: 'COLARES', path: '#' },
-  { label: 'PULSEIRAS', path: '#' },
-  { label: 'BRINCOS', path: '#' },
-  { label: 'BRACELETES', path: '#' },
-  { label: 'ANÉIS', path: '#' },
-  { label: 'SALE', path: '#' },
-]
+const categories = ref<any[]>([])
+const loading = ref(true)
+
+const fetchCategories = async () => {
+  try {
+    const { data, error } = await client
+      .from('categories')
+      .select('*')
+      .eq('active', true)
+      .order('sort_order', { ascending: true })
+    
+    if (error) throw error
+    categories.value = data || []
+  } catch (err) {
+    console.error('Erro ao buscar categorias para o header:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchCategories()
+})
 </script>
 
 <template>
@@ -92,15 +109,17 @@ const navLinks = [
 
       <!-- Nav links bar -->
       <nav class="flex justify-center items-center gap-8 xl:gap-12 2xl:gap-16 py-3 xl:py-4">
-        <a 
-          v-for="link in navLinks"
-          :key="link.label"
-          :href="link.path"
+        <span v-if="loading" class="font-label-caps text-xs text-secondary opacity-50 tracking-widest">CARREGANDO...</span>
+        <NuxtLink 
+          v-else
+          v-for="cat in categories"
+          :key="cat.id"
+          :to="`/categoria/${cat.slug}`"
           class="font-label-caps text-label-caps xl:text-[13px] 3xl:text-[15px] text-primary tracking-widest hover:text-champagne-gold transition-colors duration-300 relative group pb-1"
         >
-          {{ link.label }}
+          {{ cat.name }}
           <span class="absolute bottom-0 left-0 w-0 h-[1px] bg-champagne-gold transition-all duration-300 group-hover:w-full"></span>
-        </a>
+        </NuxtLink>
       </nav>
     </div>
   </header>
