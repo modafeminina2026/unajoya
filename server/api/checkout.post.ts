@@ -37,7 +37,8 @@ export default defineEventHandler(async (event) => {
   // Detectar a URL base atual da aplicação de forma dinâmica
   const headers = getRequestHeaders(event)
   const host = headers.host || 'localhost:3000'
-  const protocol = headers['x-forwarded-proto'] || 'http'
+  const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1')
+  const protocol = isLocalhost ? 'http' : (headers['x-forwarded-proto'] || 'https')
   const baseUrl = `${protocol}://${host}`
 
   try {
@@ -82,8 +83,6 @@ export default defineEventHandler(async (event) => {
       picture_url: (item.image && (item.image.startsWith('http://') || item.image.startsWith('https://'))) ? item.image : undefined
     }))
 
-    const isPublicUrl = baseUrl.startsWith('https://')
-
     const preferenceBody: any = {
       items: mpItems,
       payer: {
@@ -92,14 +91,14 @@ export default defineEventHandler(async (event) => {
         phone: customerPhone ? { number: customerPhone } : undefined
       },
       back_urls: {
-        success: `${baseUrl}/checkout/success`,
+        success: `${baseUrl}/checkout/success?tracking_code=${trackingCode}`,
         failure: `${baseUrl}/checkout/cancel`,
-        pending: `${baseUrl}/checkout/success`
+        pending: `${baseUrl}/checkout/success?tracking_code=${trackingCode}`
       },
       external_reference: trackingCode
     }
 
-    if (isPublicUrl) {
+    if (!isLocalhost) {
       preferenceBody.auto_return = 'approved'
       preferenceBody.notification_url = `${baseUrl}/api/webhooks/mercadopago`
     }
