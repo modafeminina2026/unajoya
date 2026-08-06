@@ -1,5 +1,6 @@
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { createClient } from '@supabase/supabase-js'
+import { sendOrderConfirmationEmail } from '../../utils/mailer'
 
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
@@ -11,7 +12,6 @@ export default defineEventHandler(async (event) => {
   }
 
   // Notificação do Mercado Pago pode vir via query params ou body
-  // Exemplo: ?type=payment&data.id=123456 ou body { action: 'payment.updated', data: { id: '123456' } }
   const topic = query.topic || query.type || body.type || body.action
   const paymentId = query['data.id'] || query.id || (body.data && body.data.id)
 
@@ -32,17 +32,47 @@ export default defineEventHandler(async (event) => {
         if (supabaseUrl && supabaseKey) {
           const supabase = createClient(supabaseUrl, supabaseKey)
 
-          // Atualizar status do pedido para 'pago' pelo tracking_code ou preference_id
+          // Buscar o pedido antes de atualizar
+          let orderData: any = null
+
           if (trackingCode) {
+            const { data } = await supabase
+              .from('orders')
+              .select('*')
+              .eq('tracking_code', trackingCode)
+              .maybeSingle()
+            orderData = data
+
             await supabase
               .from('orders')
               .update({ status: 'pago' })
               .eq('tracking_code', trackingCode)
           } else if (preferenceId) {
+            const { data } = await supabase
+              .from('orders')
+              .select('*')
+              .eq('stripe_session_id', preferenceId)
+              .maybeSingle()
+            orderData = data
+
             await supabase
               .from('orders')
               .update({ status: 'pago' })
               .eq('stripe_session_id', preferenceId)
+          }
+
+          // Enviar e-mail de confirmação de pedido se tiver os dados do cliente
+          if (orderData && orderData.customer_email) {
+            await sendOrderConfirmationEmail({
+              tracking_code: orderData.tracking_code,
+              customer_name: orderData.customer_name || 'Cliente UNA JOYA',
+              customer_email: orderData.customer_email,
+              customer_phone: orderData.customer_phone,
+              items: orderData.items || [],
+              subtotal: Number(orderData.subtotal || 0),
+              total: Number(orderData.total || 0),
+              created_at: orderData.created_at
+            })
           }
         }
       }
