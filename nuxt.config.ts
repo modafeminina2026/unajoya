@@ -1,6 +1,13 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
+import os from 'node:os'
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
+
 export default defineNuxtConfig({
+  telemetry: false,
   compatibilityDate: '2025-07-15',
+  vite: {
+    cacheDir: path.join(os.tmpdir(), 'una_joya_vite')
+  },
   devtools: { enabled: true },
   runtimeConfig: {
     public: {

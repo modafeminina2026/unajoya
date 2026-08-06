@@ -1,4 +1,4 @@
-import Stripe from 'stripe'
+import { MercadoPagoConfig, Preference } from 'mercadopago'
 import { createClient } from '@supabase/supabase-js'
 
 export default defineEventHandler(async (event) => {
@@ -12,15 +12,16 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const stripeSecret = process.env.STRIPE_SECRET_KEY
-  if (!stripeSecret) {
+  const mpAccessToken = process.env.MERCADOPAGO_ACCESS_TOKEN
+  if (!mpAccessToken) {
     throw createError({
       statusCode: 500,
-      statusMessage: 'Stripe Secret Key não está configurada no servidor (.env).'
+      statusMessage: 'Mercado Pago Access Token não está configurado no servidor (.env).'
     })
   }
 
-  const stripe = new Stripe(stripeSecret)
+  const mpClient = new MercadoPagoConfig({ accessToken: mpAccessToken })
+  const preferenceClient = new Preference(mpClient)
 
   // Inicializar Supabase para salvar o pedido
   const supabaseUrl = process.env.SUPABASE_URL
@@ -33,56 +34,16 @@ export default defineEventHandler(async (event) => {
   }
   const supabase = createClient(supabaseUrl, supabaseKey)
 
-  // Detectar a URL base atual da aplicação de forma dinâmica para sucesso/cancelamento
+  // Detectar a URL base atual da aplicação de forma dinâmica
   const headers = getRequestHeaders(event)
   const host = headers.host || 'localhost:3000'
   const protocol = headers['x-forwarded-proto'] || 'http'
   const baseUrl = `${protocol}://${host}`
 
   try {
-    const lineItems = items.map((item: any) => {
-      const unitAmount = Math.round(item.price * 100) // Stripe trabalha com centavos
-      
-      const priceData: any = {
-        currency: 'brl',
-        product_data: {
-          name: item.name,
-        },
-        unit_amount: unitAmount,
-      }
-
-      // Se a imagem for um link absoluto (válido), enviamos para o Stripe
-      if (item.image && (item.image.startsWith('http://') || item.image.startsWith('https://'))) {
-        priceData.product_data.images = [item.image]
-      }
-
-      return {
-        price_data: priceData,
-        quantity: item.quantity,
-      }
-    })
-
-    const customerName = body.customerName
-    const customerEmail = body.customerEmail
-    const customerPhone = body.customerPhone
-
-    // Calcular subtotal e total
-    const subtotal = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0)
-    const total = subtotal * 0.95 // 5% de desconto à vista
-
-    const session = await stripe.checkout.sessions.create({
-      line_items: lineItems,
-      mode: 'payment',
-      success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${baseUrl}/checkout/cancel`,
-      payment_method_options: {
-        card: {
-          installments: {
-            enabled: true
-          }
-        }
-      }
-    })
+    const customerName = body.customerName || 'Cliente UNA JOYA'
+    const customerEmail = body.customerEmail || 'cliente@unajoya.com.br'
+    const customerPhone = body.customerPhone || ''
 
     // Gerar código de rastreio único de 8 caracteres
     const generateTrackingCode = (): string => {
@@ -107,11 +68,46 @@ export default defineEventHandler(async (event) => {
       trackingCode = generateTrackingCode()
     }
 
+    // Calcular subtotal e total
+    const subtotal = items.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0)
+    const total = subtotal * 0.95 // 5% de desconto à vista
+
+    // Montar os itens para o Mercado Pago
+    const mpItems = items.map((item: any, index: number) => ({
+      id: item.id || item.slug || `item-${index}`,
+      title: item.name,
+      quantity: Number(item.quantity),
+      unit_price: Number(item.price),
+      currency_id: 'BRL',
+      picture_url: (item.image && (item.image.startsWith('http://') || item.image.startsWith('https://'))) ? item.image : undefined
+    }))
+
+    const preferenceResult = await preferenceClient.create({
+      body: {
+        items: mpItems,
+        payer: {
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone ? { number: customerPhone } : undefined
+        },
+        back_urls: {
+          success: `${baseUrl}/checkout/success?tracking_code=${trackingCode}`,
+          failure: `${baseUrl}/checkout/cancel`,
+          pending: `${baseUrl}/checkout/success?tracking_code=${trackingCode}`
+        },
+        auto_return: 'approved',
+        external_reference: trackingCode,
+        notification_url: `${baseUrl}/api/webhooks/mercadopago`
+      }
+    })
+
+    const checkoutUrl = preferenceResult.init_point || preferenceResult.sandbox_init_point
+
     // Salvar o pedido na tabela orders do Supabase
     const { error: dbError } = await supabase
       .from('orders')
       .insert([{
-        stripe_session_id: session.id,
+        stripe_session_id: preferenceResult.id,
         tracking_code: trackingCode,
         items: items.map((item: any) => ({
           name: item.name,
@@ -129,18 +125,17 @@ export default defineEventHandler(async (event) => {
 
     if (dbError) {
       console.error('Erro ao salvar pedido no Supabase:', dbError)
-      // Não interrompe o fluxo — o pagamento já foi criado no Stripe
     }
 
     return {
       success: true,
-      url: session.url
+      url: checkoutUrl
     }
   } catch (err: any) {
-    console.error('Erro ao criar sessão no Stripe:', err)
+    console.error('Erro ao criar preferência no Mercado Pago:', err)
     throw createError({
       statusCode: 500,
-      statusMessage: `Erro ao iniciar pagamento no Stripe: ${err.message}`
+      statusMessage: `Erro ao iniciar pagamento no Mercado Pago: ${err.message}`
     })
   }
 })
