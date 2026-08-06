@@ -82,23 +82,30 @@ export default defineEventHandler(async (event) => {
       picture_url: (item.image && (item.image.startsWith('http://') || item.image.startsWith('https://'))) ? item.image : undefined
     }))
 
+    const isPublicUrl = baseUrl.startsWith('https://')
+
+    const preferenceBody: any = {
+      items: mpItems,
+      payer: {
+        name: customerName,
+        email: customerEmail,
+        phone: customerPhone ? { number: customerPhone } : undefined
+      },
+      back_urls: {
+        success: `${baseUrl}/checkout/success`,
+        failure: `${baseUrl}/checkout/cancel`,
+        pending: `${baseUrl}/checkout/success`
+      },
+      external_reference: trackingCode
+    }
+
+    if (isPublicUrl) {
+      preferenceBody.auto_return = 'approved'
+      preferenceBody.notification_url = `${baseUrl}/api/webhooks/mercadopago`
+    }
+
     const preferenceResult = await preferenceClient.create({
-      body: {
-        items: mpItems,
-        payer: {
-          name: customerName,
-          email: customerEmail,
-          phone: customerPhone ? { number: customerPhone } : undefined
-        },
-        back_urls: {
-          success: `${baseUrl}/checkout/success?tracking_code=${trackingCode}`,
-          failure: `${baseUrl}/checkout/cancel`,
-          pending: `${baseUrl}/checkout/success?tracking_code=${trackingCode}`
-        },
-        auto_return: 'approved',
-        external_reference: trackingCode,
-        notification_url: `${baseUrl}/api/webhooks/mercadopago`
-      }
+      body: preferenceBody
     })
 
     const checkoutUrl = preferenceResult.init_point || preferenceResult.sandbox_init_point
