@@ -37,8 +37,7 @@ export default defineEventHandler(async (event) => {
   // Detectar a URL base atual da aplicação de forma dinâmica
   const headers = getRequestHeaders(event)
   const host = headers.host || 'localhost:3000'
-  const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1')
-  const protocol = isLocalhost ? 'http' : (headers['x-forwarded-proto'] || 'https')
+  const protocol = headers['x-forwarded-proto'] || 'http'
   const baseUrl = `${protocol}://${host}`
 
   try {
@@ -83,28 +82,23 @@ export default defineEventHandler(async (event) => {
       picture_url: (item.image && (item.image.startsWith('http://') || item.image.startsWith('https://'))) ? item.image : undefined
     }))
 
-    const preferenceBody: any = {
-      items: mpItems,
-      payer: {
-        name: customerName,
-        email: customerEmail,
-        phone: customerPhone ? { number: customerPhone } : undefined
-      },
-      back_urls: {
-        success: `${baseUrl}/checkout/success?tracking_code=${trackingCode}`,
-        failure: `${baseUrl}/checkout/cancel`,
-        pending: `${baseUrl}/checkout/success?tracking_code=${trackingCode}`
-      },
-      external_reference: trackingCode
-    }
-
-    if (!isLocalhost) {
-      preferenceBody.auto_return = 'approved'
-      preferenceBody.notification_url = `${baseUrl}/api/webhooks/mercadopago`
-    }
-
     const preferenceResult = await preferenceClient.create({
-      body: preferenceBody
+      body: {
+        items: mpItems,
+        payer: {
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone ? { number: customerPhone } : undefined
+        },
+        back_urls: {
+          success: `${baseUrl}/checkout/success?tracking_code=${trackingCode}`,
+          failure: `${baseUrl}/checkout/cancel`,
+          pending: `${baseUrl}/checkout/success?tracking_code=${trackingCode}`
+        },
+        auto_return: 'approved',
+        external_reference: trackingCode,
+        notification_url: `${baseUrl}/api/webhooks/mercadopago`
+      }
     })
 
     const checkoutUrl = preferenceResult.init_point || preferenceResult.sandbox_init_point
