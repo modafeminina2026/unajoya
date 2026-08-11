@@ -1,4 +1,11 @@
+import path from 'node:path'
+import os from 'node:os'
+
 export default defineNuxtConfig({
+  buildDir: path.join(os.tmpdir(), 'una_joya_nuxt_build'),
+  vite: {
+    cacheDir: path.join(os.tmpdir(), 'una_joya_vite_cache')
+  },
   nitro: {
     externals: {
       inline: ['mercadopago']
