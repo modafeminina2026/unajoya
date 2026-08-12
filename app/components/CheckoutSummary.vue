@@ -10,30 +10,68 @@ const {
 
 const showCouponInput = ref(false)
 const couponCode = ref('')
-const calculatedShipping = ref<string | null>(null)
+const cepInput = ref('')
+const calculatedShipping = ref<{ label: string; days: string; isFree: boolean; service: string; price: number } | null>(null)
 const calculatingShipping = ref(false)
+const cepError = ref('')
 const checkoutLoading = ref(false)
 
 const customerName = ref('')
 const customerEmail = ref('')
 const customerPhone = ref('')
 
+const FREE_SHIPPING_THRESHOLD = 300
+const isFreeShipping = computed(() => subtotal.value >= FREE_SHIPPING_THRESHOLD)
+const amountLeftForFreeShipping = computed(() => Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal.value))
+
+const shippingCost = computed(() => {
+  if (isFreeShipping.value) return 0
+  if (calculatedShipping.value && typeof calculatedShipping.value.price === 'number') {
+    return calculatedShipping.value.price
+  }
+  return 0 // sem frete calculado ainda, nao adicionar ao total
+})
+const finalTotalWithShipping = computed(() => total.value + shippingCost.value)
+
 const formatCurrency = (val: number) => {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0)
 }
 
-const formatInstallment = computed(() => {
-  const price = subtotal.value
-  const installment = price / 6
-  return formatCurrency(installment)
+// Máximo de parcelas: mínimo de R$ 100 por parcela, até 12x
+const maxInstallments = computed(() => Math.min(12, Math.max(1, Math.floor(subtotal.value / 100))))
+const installmentValue = computed(() => formatCurrency(subtotal.value / maxInstallments.value))
+
+const installmentText = computed(() => {
+  const n = maxInstallments.value
+  if (n <= 1) return 'pagamento à vista'
+  return `em até ${n}x de ${installmentValue.value} sem juros`
 })
 
-const handleCalculateShipping = () => {
+const handleCalculateShipping = async () => {
+  const clean = cepInput.value.replace(/\D/g, '')
+  if (clean.length !== 8) {
+    cepError.value = 'Digite um CEP válido com 8 dígitos.'
+    return
+  }
+  cepError.value = ''
   calculatingShipping.value = true
-  setTimeout(() => {
+  try {
+    const res = await $fetch<any>('/api/shipping', {
+      method: 'POST',
+      body: { cep: clean, subtotal: subtotal.value }
+    })
+    calculatedShipping.value = {
+      label: res.isFree ? 'Grátis' : res.label,
+      days: res.days,
+      isFree: res.isFree,
+      service: res.service,
+      price: Number(res.price) || 0
+    }
+  } catch {
+    cepError.value = 'Não foi possível calcular. Tente novamente.'
+  } finally {
     calculatingShipping.value = false
-    calculatedShipping.value = 'Grátis'
-  }, 1200)
+  }
 }
 
 const handleCheckout = async () => {
@@ -80,7 +118,26 @@ const handleCheckout = async () => {
 
 <template>
   <div class="bg-white rounded-lg border border-soft-stone p-6 space-y-6 card-shadow">
-    <h3 class="font-headline-md text-headline-md border-b border-soft-stone pb-4 font-medium">Resumo</h3>
+    <h3 class="font-headline-md text-headline-md border-b border-soft-stone pb-4 font-medium">Resumo do Pedido</h3>
+
+    <!-- Free shipping progress bar -->
+    <div class="p-3 bg-surface-container-low border border-soft-stone rounded-sm text-center">
+      <div v-if="isFreeShipping" class="flex items-center justify-center gap-2 text-[#2D8A5B] font-bold text-xs font-label-caps">
+        <span class="material-symbols-outlined text-base">local_shipping</span>
+        <span>VOCÊ GANHOU FRETE GRÁTIS!</span>
+      </div>
+      <div v-else class="space-y-1">
+        <p class="text-xs text-primary font-body-md">
+          Faltam <strong class="text-primary font-bold">{{ formatCurrency(amountLeftForFreeShipping) }}</strong> para ganhar <span class="text-[#2D8A5B] font-bold">FRETE GRÁTIS</span>
+        </p>
+        <div class="w-full bg-soft-stone h-1.5 rounded-full overflow-hidden">
+          <div 
+            class="bg-champagne-gold h-full transition-all duration-500" 
+            :style="{ width: `${Math.min(100, (subtotal / FREE_SHIPPING_THRESHOLD) * 100)}%` }"
+          ></div>
+        </div>
+      </div>
+    </div>
     
     <!-- Dados de Contato -->
     <div class="space-y-4 border-b border-soft-stone pb-6">
@@ -159,34 +216,70 @@ const handleCheckout = async () => {
       </div>
 
       <!-- Shipping -->
-      <div class="flex justify-between items-center">
-        <span class="text-on-surface-variant font-body-md">Frete</span>
-        <div class="flex items-center">
-          <span v-if="calculatingShipping" class="text-secondary text-sm">Calculando...</span>
-          <span v-else-if="calculatedShipping" class="font-semibold text-body-md text-[#2D8A5B]">Grátis</span>
-          <button 
-            v-else
-            class="text-primary font-body-md hover:underline hover:text-champagne-gold transition-colors"
-            @click="handleCalculateShipping"
-          >
-            Calcular
-          </button>
+      <div class="space-y-2">
+        <div class="flex justify-between items-start">
+          <span class="text-on-surface-variant font-body-md">Frete</span>
+          <div class="text-right">
+            <span v-if="isFreeShipping" class="font-semibold text-body-md text-[#2D8A5B]">Grátis 🎉</span>
+            <span v-else-if="calculatingShipping" class="text-secondary text-sm animate-pulse">Calculando...</span>
+            <span v-else-if="calculatedShipping" :class="calculatedShipping.isFree ? 'text-[#2D8A5B]' : 'text-primary'" class="font-semibold text-body-md">
+              {{ calculatedShipping.label }}
+            </span>
+            <span v-else class="text-secondary text-sm">—</span>
+          </div>
+        </div>
+
+        <!-- CEP input (só aparece se não tiver frete grátis automático) -->
+        <div v-if="!isFreeShipping" class="space-y-1">
+          <div class="flex gap-2">
+            <input
+              v-model="cepInput"
+              type="text"
+              placeholder="00000-000"
+              maxlength="9"
+              @input="cepInput = cepInput.replace(/\D/g, '').replace(/^(\d{5})(\d)/, '$1-$2')"
+              @keyup.enter="handleCalculateShipping"
+              class="flex-1 border border-soft-stone px-3 py-1.5 text-sm focus:outline-none focus:border-primary transition-colors rounded-none"
+            >
+            <button
+              :disabled="calculatingShipping"
+              class="bg-primary text-white text-xs px-3 py-1.5 hover:bg-on-surface-variant transition-colors font-label-caps tracking-wider disabled:opacity-50"
+              @click="handleCalculateShipping"
+            >
+              {{ calculatingShipping ? '...' : 'OK' }}
+            </button>
+          </div>
+          <p v-if="cepError" class="text-red-500 text-[10px]">{{ cepError }}</p>
+          <p v-if="calculatedShipping && !calculatedShipping.isFree" class="text-[10px] text-secondary">
+            {{ calculatedShipping.service }} · {{ calculatedShipping.days }}
+          </p>
+          <a href="https://buscacepinter.correios.com.br/app/endereco/index.php" target="_blank" class="text-[10px] text-champagne-gold hover:underline">Não sei meu CEP</a>
         </div>
       </div>
     </div>
 
     <!-- Pricing summary totals -->
-    <div class="border-t border-soft-stone pt-6 space-y-2">
+    <div class="border-t border-soft-stone pt-6 space-y-3">
       <div class="flex justify-between items-baseline">
         <span class="font-bold text-headline-md">Total</span>
         <div class="text-right">
-          <span class="font-bold text-2xl text-primary">{{ formatCurrency(total) }}</span>
-          <p class="text-on-surface-variant text-sm mt-1">à vista com 5% OFF</p>
+          <span class="font-bold text-2xl text-primary">{{ formatCurrency(finalTotalWithShipping) }}</span>
+          <p class="text-[#2D8A5B] text-xs font-bold mt-0.5">à vista no PIX (com 5% OFF)</p>
         </div>
       </div>
-      <div class="flex justify-end">
-        <p class="text-[#2D8A5B] font-bold text-sm font-semibold">
-          ou 6x {{ formatInstallment }} sem juros
+
+      <!-- Options breakdown -->
+      <div class="p-3 bg-surface-container-low border border-soft-stone rounded-sm space-y-2">
+        <div class="flex items-center justify-between text-xs">
+          <span class="font-bold text-primary flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-sm text-champagne-gold">credit_card</span>
+            Parcelamento no Cartão
+          </span>
+          <span class="font-semibold text-primary">{{ maxInstallments > 1 ? `até ${maxInstallments}x` : 'à vista' }}</span>
+        </div>
+        <p class="text-[10px] text-secondary leading-tight">
+          <span v-if="maxInstallments > 1">{{ installmentText }} no cartão via Mercado Pago.</span>
+          <span v-else>Valor abaixo de R$ 200 — pague à vista no cartão ou PIX com 5% OFF.</span>
         </p>
       </div>
     </div>
@@ -199,7 +292,15 @@ const handleCheckout = async () => {
       :class="{ 'opacity-50 pointer-events-none': checkoutLoading }"
     >
       <span v-if="checkoutLoading" class="material-symbols-outlined animate-spin text-sm">sync</span>
-      {{ checkoutLoading ? 'Carregando...' : 'Finalizar a compra' }}
+      {{ checkoutLoading ? 'Carregando Mercado Pago...' : 'IR PARA O PAGAMENTO' }}
     </button>
+
+    <!-- Mercado Pago Security Seal -->
+    <div class="text-center space-y-1">
+      <p class="text-[10px] text-secondary font-label-caps tracking-wider flex items-center justify-center gap-1">
+        <span class="material-symbols-outlined text-xs text-[#2D8A5B]">lock</span>
+        PAGAMENTO 100% SEGURO VIA MERCADO PAGO
+      </p>
+    </div>
   </div>
 </template>

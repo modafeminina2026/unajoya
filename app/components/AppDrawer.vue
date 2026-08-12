@@ -147,7 +147,7 @@ onMounted(() => {
         <!-- Info Badges inside menu -->
         <div class="text-center py-2 px-4 border border-champagne-gold/30 bg-surface/50 rounded-sm">
           <p class="text-[9px] font-label-caps text-champagne-gold tracking-widest font-semibold">
-            FRETE GRÁTIS ACIMA DE R$ 350
+            FRETE GRÁTIS ACIMA DE R$ 300
           </p>
         </div>
 

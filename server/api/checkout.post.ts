@@ -82,23 +82,38 @@ export default defineEventHandler(async (event) => {
       picture_url: (item.image && (item.image.startsWith('http://') || item.image.startsWith('https://'))) ? item.image : undefined
     }))
 
+    // Mercado Pago exige HTTPS nas back_urls quando auto_return é ativado
+    const isLocal = host.includes('localhost') || host.includes('127.0.0.1')
+    const redirectBaseUrl = isLocal ? 'https://unajoya.com.br' : `${protocol}://${host}`
+
+    const preferenceBody: any = {
+      items: mpItems,
+      payer: {
+        name: customerName,
+        email: customerEmail,
+        phone: customerPhone ? { number: customerPhone } : undefined
+      },
+      payment_methods: {
+        // Parcela mínima de R$ 100: ex. R$ 300 = máx 3x, R$ 1200 = máx 12x
+        installments: Math.min(12, Math.max(1, Math.floor(subtotal / 100))),
+        default_installments: 1
+      },
+      back_urls: {
+        success: `${redirectBaseUrl}/checkout/success?tracking_code=${trackingCode}`,
+        failure: `${redirectBaseUrl}/checkout/cancel`,
+        pending: `${redirectBaseUrl}/checkout/success?tracking_code=${trackingCode}`
+      },
+      auto_return: 'approved',
+      external_reference: trackingCode
+    }
+
+    // notification_url só aceita HTTPS público válido
+    if (!isLocal) {
+      preferenceBody.notification_url = `${baseUrl}/api/webhooks/mercadopago`
+    }
+
     const preferenceResult = await preferenceClient.create({
-      body: {
-        items: mpItems,
-        payer: {
-          name: customerName,
-          email: customerEmail,
-          phone: customerPhone ? { number: customerPhone } : undefined
-        },
-        back_urls: {
-          success: `${baseUrl}/checkout/success?tracking_code=${trackingCode}`,
-          failure: `${baseUrl}/checkout/cancel`,
-          pending: `${baseUrl}/checkout/success?tracking_code=${trackingCode}`
-        },
-        auto_return: 'approved',
-        external_reference: trackingCode,
-        notification_url: `${baseUrl}/api/webhooks/mercadopago`
-      }
+      body: preferenceBody
     })
 
     const checkoutUrl = preferenceResult.init_point || preferenceResult.sandbox_init_point

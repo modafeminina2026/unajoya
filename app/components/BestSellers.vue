@@ -7,6 +7,7 @@ interface Product {
   price: number
   installments: string
   image: string
+  images: string[]
   category: { name: string; slug: string } | null
 }
 
@@ -47,12 +48,28 @@ const fetchProducts = async () => {
           ? (price / instCount).toFixed(2).replace('.', ',')
           : '0,00'
 
+        let imgList: string[] = []
+        if (Array.isArray(p.images) && p.images.length > 0) {
+          imgList = p.images.map((img: any) => String(img)).filter(Boolean)
+        } else if (p.images && typeof p.images === 'string') {
+          try {
+            const parsed = JSON.parse(p.images)
+            if (Array.isArray(parsed)) imgList = parsed.filter(Boolean)
+          } catch {
+            imgList = [p.images]
+          }
+        }
+        if (imgList.length === 0 && p.image) {
+          imgList = [p.image]
+        }
+
         return {
           id: p.id,
           name: p.name,
           price,
           installments: price > 0 ? `${instCount}x de R$ ${instPrice} sem juros` : '',
-          image: p.image,
+          image: imgList[0] || p.image || '',
+          images: imgList,
           category: p.categories ? { name: p.categories.name, slug: p.categories.slug } : null
         }
       })
@@ -67,7 +84,7 @@ const handleBuy = (product: Product) => {
   addToCart({
     name: product.name,
     price: product.price,
-    image: product.image
+    image: product.images[0] || product.image
   })
 }
 
@@ -103,12 +120,29 @@ onMounted(() => {
       >
         <!-- Product Image Container -->
         <div class="aspect-[3/4] mb-4 overflow-hidden bg-pure-white shadow-sm relative">
+          <!-- Main Image -->
           <img 
             :alt="product.name" 
-            class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-            :src="product.image"
+            class="w-full h-full object-cover transition-all duration-700 group-hover:scale-105" 
+            :class="product.images.length > 1 ? 'group-hover:opacity-0' : ''"
+            :src="product.images[0] || product.image"
             loading="lazy"
           >
+          
+          <!-- Secondary Image (Hover Effect) -->
+          <img 
+            v-if="product.images.length > 1"
+            :alt="`${product.name} - Vista 2`" 
+            class="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-all duration-700 group-hover:scale-105" 
+            :src="product.images[1]"
+            loading="lazy"
+          >
+
+          <!-- Multiple Photos Badge -->
+          <div v-if="product.images.length > 1" class="absolute bottom-2 right-2 bg-primary/80 text-white font-label-caps text-[9px] px-2 py-0.5 tracking-wider rounded-xs backdrop-blur-xs opacity-90 group-hover:opacity-100 transition-opacity">
+            +{{ product.images.length - 1 }}
+          </div>
+
           <div class="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
         </div>
         
@@ -127,15 +161,24 @@ onMounted(() => {
         </h4>
         
         <!-- Product Price -->
-        <p class="font-bold text-primary mb-1 lg:text-[17px] 3xl:text-[20px]">
-          {{ product.price > 0 ? formatCurrency(product.price) : '—' }}
-        </p>
+        <div class="mb-1">
+          <p class="font-bold text-primary lg:text-[17px] 3xl:text-[20px]">
+            {{ product.price > 0 ? formatCurrency(product.price) : '—' }}
+          </p>
+          <p v-if="product.price > 0" class="text-[10px] text-[#2D8A5B] font-label-caps tracking-wider font-semibold">
+            à vista no PIX
+          </p>
+        </div>
         
         <!-- Installments -->
-        <p v-if="product.installments" class="text-[10px] lg:text-[11px] 3xl:text-[13px] text-secondary tracking-widest uppercase mb-4 font-semibold">
-          {{ product.installments }}
-        </p>
-        <div v-else class="mb-4 h-4"></div>
+        <div class="mb-4 min-h-[16px]">
+          <p v-if="product.installments" class="text-[10px] lg:text-[11px] 3xl:text-[13px] text-secondary tracking-widest uppercase font-semibold">
+            {{ product.installments }}
+          </p>
+          <p v-else-if="product.price >= 200" class="text-[10px] text-secondary tracking-wider uppercase font-semibold mt-0.5">
+            ou em até {{ Math.min(12, Math.floor(product.price / 100)) }}x sem juros
+          </p>
+        </div>
         
         <!-- Buy Button -->
         <button 
@@ -148,4 +191,5 @@ onMounted(() => {
     </div>
   </section>
 </template>
+
 

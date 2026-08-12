@@ -13,7 +13,7 @@
         <span class="material-symbols-outlined text-primary text-2xl lg:text-3xl 3xl:text-4xl">local_shipping</span>
       </div>
       <h3 class="font-label-caps text-label-caps lg:text-[13px] 3xl:text-[15px] text-primary tracking-widest mt-1">FRETE GRÁTIS</h3>
-      <p class="text-[10px] lg:text-[11px] 3xl:text-[13px] text-secondary tracking-widest leading-tight uppercase">Brasil todo</p>
+      <p class="text-[10px] lg:text-[11px] 3xl:text-[13px] text-secondary tracking-widest leading-tight uppercase">Acima de R$ 300</p>
     </div>
     
     <div class="flex flex-col items-center space-y-2 group lg:py-4">

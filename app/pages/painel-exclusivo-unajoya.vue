@@ -14,6 +14,7 @@ interface AdminProduct {
   promo: boolean
   duration: number // em dias
   image: string
+  images: string[]
   createdAt: Date
   category_id: number | null
   category_name?: string
@@ -41,24 +42,36 @@ const form = ref({
   promo: false,
   duration: 15,
   image: mockImages[0],
+  images: [mockImages[0]] as string[],
   category_id: null as number | null
 })
 
 const isEditing = computed(() => form.value.id !== null)
+const activePreviewIndex = ref(0)
 
-// Upload de imagem simulado (permite digitar ou escolher uma das mockadas) e upload real no Cloudflare R2
+// Gerenciamento de imagens (máximo 5)
 const imageInputUrl = ref('')
 const showUrlInput = ref(false)
 const uploading = ref(false)
 
+const addImageToForm = (url: string) => {
+  if (form.value.images.length >= 5) {
+    alert('Você atingiu o limite máximo de 5 fotos por produto.')
+    return
+  }
+  form.value.images.push(url)
+  form.value.image = form.value.images[0]
+  activePreviewIndex.value = form.value.images.length - 1
+}
+
 const selectMockImage = (url: string) => {
-  form.value.image = url
+  addImageToForm(url)
   showUrlInput.value = false
 }
 
 const applyCustomUrl = () => {
   if (imageInputUrl.value.trim()) {
-    form.value.image = imageInputUrl.value.trim()
+    addImageToForm(imageInputUrl.value.trim())
     showUrlInput.value = false
     imageInputUrl.value = ''
   }
@@ -68,6 +81,12 @@ const handleFileUpload = async (event: Event) => {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
   if (!file) return
+
+  if (form.value.images.length >= 5) {
+    alert('Você atingiu o limite máximo de 5 fotos por produto.')
+    target.value = ''
+    return
+  }
 
   uploading.value = true
   const formData = new FormData()
@@ -80,7 +99,7 @@ const handleFileUpload = async (event: Event) => {
     })
 
     if (response.success && response.url) {
-      form.value.image = response.url
+      addImageToForm(response.url)
       showUrlInput.value = false
     } else {
       alert('Falha ao fazer upload da imagem.')
@@ -94,6 +113,35 @@ const handleFileUpload = async (event: Event) => {
   }
 }
 
+const removeImageAt = (index: number) => {
+  if (form.value.images.length <= 1) {
+    alert('O produto precisa ter pelo menos 1 foto.')
+    return
+  }
+  form.value.images.splice(index, 1)
+  form.value.image = form.value.images[0] || ''
+  if (activePreviewIndex.value >= form.value.images.length) {
+    activePreviewIndex.value = Math.max(0, form.value.images.length - 1)
+  }
+}
+
+const setPrimaryImage = (index: number) => {
+  if (index === 0) return
+  const [img] = form.value.images.splice(index, 1)
+  form.value.images.unshift(img)
+  form.value.image = form.value.images[0]
+  activePreviewIndex.value = 0
+}
+
+const moveImage = (index: number, direction: 'left' | 'right') => {
+  const targetIndex = direction === 'left' ? index - 1 : index + 1
+  if (targetIndex < 0 || targetIndex >= form.value.images.length) return
+  const temp = form.value.images[index]
+  form.value.images[index] = form.value.images[targetIndex]
+  form.value.images[targetIndex] = temp
+  form.value.image = form.value.images[0]
+  activePreviewIndex.value = targetIndex
+}
 
 // Buscar produtos do banco
 const fetchProducts = async () => {
@@ -106,19 +154,40 @@ const fetchProducts = async () => {
     
     if (error) throw error
     
-    products.value = (data || []).map(p => ({
-      id: p.id,
-      name: p.name,
-      description: p.description || '',
-      price: Number(p.price),
-      stock: Number(p.stock),
-      promo: p.promo,
-      duration: Number(p.duration),
-      image: p.image || '',
-      createdAt: new Date(p.created_at),
-      category_id: p.category_id,
-      category_name: p.categories?.name || 'Nenhuma'
-    }))
+    products.value = (data || []).map(p => {
+      let imgList: string[] = []
+      if (Array.isArray(p.images) && p.images.length > 0) {
+        imgList = p.images.map((img: any) => String(img)).filter(Boolean)
+      } else if (p.images && typeof p.images === 'string') {
+        try {
+          const parsed = JSON.parse(p.images)
+          if (Array.isArray(parsed)) imgList = parsed.filter(Boolean)
+        } catch {
+          imgList = [p.images]
+        }
+      }
+      if (imgList.length === 0 && p.image) {
+        imgList = [p.image]
+      }
+      if (imgList.length === 0) {
+        imgList = [mockImages[0]]
+      }
+
+      return {
+        id: p.id,
+        name: p.name,
+        description: p.description || '',
+        price: Number(p.price),
+        stock: Number(p.stock),
+        promo: p.promo,
+        duration: Number(p.duration),
+        image: imgList[0] || p.image || '',
+        images: imgList,
+        createdAt: new Date(p.created_at),
+        category_id: p.category_id,
+        category_name: p.categories?.name || 'Nenhuma'
+      }
+    })
   } catch (err) {
     console.error('Erro ao buscar produtos:', err)
   } finally {
@@ -163,40 +232,56 @@ const handlePublish = async () => {
     return
   }
 
+  if (form.value.images.length === 0) {
+    alert('Adicione pelo menos 1 foto para a joia.')
+    return
+  }
+
+  const primaryImg = form.value.images[0] || form.value.image || ''
+  const imagesArray = form.value.images.slice(0, 5)
+
+  const payload: any = {
+    name: form.value.name,
+    description: form.value.description,
+    price: Number(form.value.price),
+    stock: Number(form.value.stock),
+    promo: form.value.promo,
+    duration: Number(form.value.duration),
+    image: primaryImg,
+    images: imagesArray,
+    category_id: form.value.category_id ? Number(form.value.category_id) : null
+  }
+
   try {
     if (isEditing.value) {
-      // Editar existente no Supabase
       const { error } = await client
         .from('products')
-        .update({
-          name: form.value.name,
-          description: form.value.description,
-          price: Number(form.value.price),
-          stock: Number(form.value.stock),
-          promo: form.value.promo,
-          duration: Number(form.value.duration),
-          image: form.value.image,
-          category_id: form.value.category_id ? Number(form.value.category_id) : null
-        })
+        .update(payload)
         .eq('id', form.value.id)
       
-      if (error) throw error
+      if (error) {
+        if (error.message?.includes('images') || error.code === 'PGRST204') {
+          delete payload.images
+          const { error: err2 } = await client.from('products').update(payload).eq('id', form.value.id)
+          if (err2) throw err2
+        } else {
+          throw error
+        }
+      }
     } else {
-      // Adicionar novo no Supabase
       const { error } = await client
         .from('products')
-        .insert([{
-          name: form.value.name,
-          description: form.value.description,
-          price: Number(form.value.price),
-          stock: Number(form.value.stock),
-          promo: form.value.promo,
-          duration: Number(form.value.duration),
-          image: form.value.image,
-          category_id: form.value.category_id ? Number(form.value.category_id) : null
-        }])
+        .insert([payload])
       
-      if (error) throw error
+      if (error) {
+        if (error.message?.includes('images') || error.code === 'PGRST204') {
+          delete payload.images
+          const { error: err2 } = await client.from('products').insert([payload])
+          if (err2) throw err2
+        } else {
+          throw error
+        }
+      }
     }
 
     clearForm()
@@ -208,6 +293,10 @@ const handlePublish = async () => {
 }
 
 const handleEdit = (product: AdminProduct) => {
+  const imgList = (product.images && product.images.length > 0)
+    ? [...product.images]
+    : [product.image || mockImages[0]]
+
   form.value = {
     id: product.id,
     name: product.name,
@@ -216,9 +305,11 @@ const handleEdit = (product: AdminProduct) => {
     stock: product.stock,
     promo: product.promo,
     duration: product.duration,
-    image: product.image,
+    image: imgList[0],
+    images: imgList,
     category_id: product.category_id || null
   }
+  activePreviewIndex.value = 0
 }
 
 const handleDelete = async (id: number) => {
@@ -252,8 +343,10 @@ const clearForm = () => {
     promo: false,
     duration: 15,
     image: mockImages[0],
+    images: [mockImages[0]],
     category_id: null
   }
+  activePreviewIndex.value = 0
 }
 
 const formatCurrency = (val: number) => {
@@ -1303,19 +1396,110 @@ onMounted(() => {
           <section class="lg:col-span-5 space-y-12 fade-in" style="animation-delay: 0.2s">
             <!-- Media Upload Card -->
             <div class="bg-surface-container-low p-6 sm:p-8 border border-soft-stone">
-              <div class="flex items-center justify-between mb-6">
-                <h3 class="font-label-caps text-[11px] text-primary tracking-widest font-bold">FOTOGRAFIA DA JOIA</h3>
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h3 class="font-label-caps text-[11px] text-primary tracking-widest font-bold uppercase">FOTOGRAFIAS DA JOIA</h3>
+                  <p class="text-[10px] text-secondary font-body-md mt-0.5">Adicione de 1 até 5 fotos ({{ form.images.length }}/5)</p>
+                </div>
                 <button 
+                  v-if="form.images.length < 5"
+                  type="button"
                   @click="showUrlInput = !showUrlInput" 
-                  class="text-[10px] font-label-caps text-champagne-gold tracking-widest hover:underline"
+                  class="text-[10px] font-label-caps text-champagne-gold tracking-widest hover:underline uppercase font-bold"
                 >
                   USAR LINK PERSONALIZADO
                 </button>
               </div>
 
+              <!-- Media Thumbnails List (Current product images) -->
+              <div class="mb-6 space-y-2">
+                <label class="block text-[10px] font-label-caps text-secondary font-bold tracking-wider uppercase mb-2">
+                  FOTOS ADICIONADAS (FOTO 1 É A CAPA PRINCIPAL)
+                </label>
+                <div class="grid grid-cols-5 gap-2">
+                  <div 
+                    v-for="(imgUrl, idx) in form.images" 
+                    :key="idx" 
+                    class="relative group aspect-[4/5] bg-white border rounded-sm overflow-hidden flex flex-col justify-between"
+                    :class="activePreviewIndex === idx ? 'border-primary ring-2 ring-champagne-gold' : 'border-soft-stone'"
+                  >
+                    <img 
+                      :src="imgUrl" 
+                      class="w-full h-full object-cover cursor-pointer"
+                      @click="activePreviewIndex = idx" 
+                      alt="Thumbnail produto" 
+                    />
+                    <!-- Cover badge -->
+                    <span 
+                      v-if="idx === 0" 
+                      class="absolute top-1 left-1 bg-primary text-white text-[8px] font-bold px-1.5 py-0.5 uppercase tracking-wider rounded-xs shadow"
+                    >
+                      Capa
+                    </span>
+                    <span 
+                      v-else 
+                      class="absolute top-1 left-1 bg-black/60 text-white text-[8px] font-bold px-1 py-0.5 rounded-xs"
+                    >
+                      #{{ idx + 1 }}
+                    </span>
+
+                    <!-- Quick Actions Overlay -->
+                    <div class="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 p-1">
+                      <button 
+                        v-if="idx !== 0"
+                        type="button"
+                        @click.stop="setPrimaryImage(idx)" 
+                        title="Definir como capa principal"
+                        class="bg-champagne-gold text-primary text-[8px] font-bold px-1.5 py-1 rounded w-full hover:bg-white transition-colors uppercase tracking-wider"
+                      >
+                        Tornar Capa
+                      </button>
+                      <div class="flex items-center gap-1 w-full justify-center">
+                        <button 
+                          v-if="idx > 0" 
+                          type="button"
+                          @click.stop="moveImage(idx, 'left')" 
+                          title="Mover para esquerda"
+                          class="bg-white/90 hover:bg-white text-primary text-xs w-6 h-6 flex items-center justify-center rounded font-bold"
+                        >
+                          ‹
+                        </button>
+                        <button 
+                          v-if="idx < form.images.length - 1" 
+                          type="button"
+                          @click.stop="moveImage(idx, 'right')" 
+                          title="Mover para direita"
+                          class="bg-white/90 hover:bg-white text-primary text-xs w-6 h-6 flex items-center justify-center rounded font-bold"
+                        >
+                          ›
+                        </button>
+                        <button 
+                          type="button"
+                          @click.stop="removeImageAt(idx)" 
+                          title="Remover foto"
+                          class="bg-red-600 hover:bg-red-700 text-white text-xs w-6 h-6 flex items-center justify-center rounded font-bold"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Placeholder slots for remaining slots up to 5 -->
+                  <div 
+                    v-for="emptyIdx in (5 - form.images.length)" 
+                    :key="'empty-' + emptyIdx"
+                    class="aspect-[4/5] border border-dashed border-soft-stone flex flex-col items-center justify-center text-center p-1 opacity-40 bg-surface"
+                  >
+                    <span class="material-symbols-outlined text-secondary text-sm">add_photo_alternate</span>
+                    <span class="text-[9px] text-secondary font-bold">Foto {{ form.images.length + emptyIdx }}</span>
+                  </div>
+                </div>
+              </div>
+
               <!-- Custom URL Input -->
-              <div v-if="showUrlInput" class="mb-6 space-y-3 p-4 border border-soft-stone bg-surface">
-                <label class="block text-[10px] font-label-caps text-secondary font-bold">URL DA IMAGEM</label>
+              <div v-if="showUrlInput && form.images.length < 5" class="mb-6 space-y-3 p-4 border border-soft-stone bg-surface">
+                <label class="block text-[10px] font-label-caps text-secondary font-bold">ADICIONAR LINK DA IMAGEM</label>
                 <div class="flex gap-2">
                   <input 
                     v-model="imageInputUrl" 
@@ -1324,63 +1508,91 @@ onMounted(() => {
                     class="flex-grow bg-white border border-soft-stone px-3 py-2 text-xs focus:outline-none focus:border-primary"
                   />
                   <button 
+                    type="button"
                     @click="applyCustomUrl" 
                     class="bg-primary text-white text-xs px-4 py-2 hover:bg-deep-onyx"
                   >
-                    Aplicar
+                    Adicionar
                   </button>
                 </div>
               </div>
 
               <!-- Quick mock selection -->
-              <div class="grid grid-cols-3 gap-2 mb-6">
-                <button 
-                  v-for="(img, idx) in mockImages" 
-                  :key="idx" 
-                  @click="selectMockImage(img)"
-                  class="aspect-square bg-cover bg-center border-2 transition-all hover:opacity-85"
-                  :class="form.image === img ? 'border-primary scale-95 shadow-sm' : 'border-transparent'"
-                  :style="{ backgroundImage: `url('${img}')` }"
-                  :aria-label="`Selecionar imagem ${idx + 1}`"
-                ></button>
+              <div v-if="form.images.length < 5" class="mb-6">
+                <label class="block text-[9px] font-label-caps text-secondary font-semibold uppercase mb-2">
+                  Imagens sugeridas para teste (clique para adicionar):
+                </label>
+                <div class="grid grid-cols-3 gap-2">
+                  <button 
+                    v-for="(img, idx) in mockImages" 
+                    :key="idx" 
+                    type="button"
+                    @click="selectMockImage(img)"
+                    class="aspect-square bg-cover bg-center border transition-all hover:opacity-85"
+                    :class="form.images.includes(img) ? 'border-primary opacity-40' : 'border-soft-stone'"
+                    :style="{ backgroundImage: `url('${img}')` }"
+                    :disabled="form.images.includes(img)"
+                    :title="form.images.includes(img) ? 'Já adicionada' : 'Adicionar esta imagem'"
+                  ></button>
+                </div>
               </div>
 
-              <label 
-                class="aspect-[4/5] border-2 border-dashed border-outline-variant flex flex-col items-center justify-center p-8 text-center hover:bg-white transition-colors cursor-pointer relative"
-                :class="{ 'opacity-50 pointer-events-none': uploading }"
-              >
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  class="hidden" 
-                  @change="handleFileUpload" 
-                  :disabled="uploading"
-                />
-                <div class="w-16 h-16 rounded-full bg-surface flex items-center justify-center mb-4 border border-soft-stone">
-                  <span class="material-symbols-outlined text-primary" :class="{ 'animate-spin': uploading }">
-                    {{ uploading ? 'sync' : 'add_a_photo' }}
-                  </span>
-                </div>
-                <p class="font-headline-md text-primary text-base mb-2">
-                  {{ uploading ? 'Enviando para o R2...' : 'Clique para enviar imagem' }}
-                </p>
-                <p class="text-secondary font-body-md text-xs leading-relaxed">
-                  {{ uploading ? 'Por favor, aguarde...' : 'Selecione uma foto do seu computador para salvar no Cloudflare R2.' }}
-                </p>
-              </label>
+              <!-- Upload Button -->
+              <div v-if="form.images.length < 5">
+                <label 
+                  class="aspect-[4/5] border-2 border-dashed border-outline-variant flex flex-col items-center justify-center p-8 text-center hover:bg-white transition-colors cursor-pointer relative"
+                  :class="{ 'opacity-50 pointer-events-none': uploading }"
+                >
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    class="hidden" 
+                    @change="handleFileUpload" 
+                    :disabled="uploading"
+                  />
+                  <div class="w-16 h-16 rounded-full bg-surface flex items-center justify-center mb-4 border border-soft-stone">
+                    <span class="material-symbols-outlined text-primary" :class="{ 'animate-spin': uploading }">
+                      {{ uploading ? 'sync' : 'add_a_photo' }}
+                    </span>
+                  </div>
+                  <p class="font-headline-md text-primary text-base mb-2">
+                    {{ uploading ? 'Enviando para o R2...' : 'Clique para enviar imagem' }}
+                  </p>
+                  <p class="text-secondary font-body-md text-xs leading-relaxed">
+                    {{ uploading ? 'Por favor, aguarde...' : 'Selecione uma foto do seu computador para salvar no Cloudflare R2 (máx 5 fotos).' }}
+                  </p>
+                </label>
+              </div>
+              <div v-else class="p-4 bg-surface border border-soft-stone text-center text-xs text-secondary font-body-md">
+                ✓ Limite máximo de 5 fotos atingido para esta peça.
+              </div>
             </div>
 
             <!-- Lookbook Preview Card -->
             <div class="relative group overflow-hidden bg-pure-white border border-soft-stone luxury-shadow">
-              <div class="absolute top-4 left-4 z-10">
+              <div class="absolute top-4 left-4 z-10 flex gap-2">
                 <span class="bg-primary text-pure-white font-label-caps px-3 py-1.5 text-[9px] font-bold tracking-widest">VITRINE PREVIEW</span>
+                <span v-if="form.images.length > 1" class="bg-champagne-gold text-primary font-label-caps px-2 py-1.5 text-[9px] font-bold tracking-widest">
+                  FOTO {{ activePreviewIndex + 1 }} DE {{ form.images.length }}
+                </span>
               </div>
-              <div class="aspect-[3/4] bg-soft-stone overflow-hidden">
+              <div class="aspect-[3/4] bg-soft-stone overflow-hidden relative">
                 <img 
                   class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-                  :src="form.image || mockImages[0]"
+                  :src="form.images[activePreviewIndex] || form.image || mockImages[0]"
                   alt="Preview da joia"
                 />
+                <!-- Indicator dots for preview gallery -->
+                <div v-if="form.images.length > 1" class="absolute bottom-3 left-0 right-0 flex justify-center gap-2 px-4 z-10">
+                  <button 
+                    v-for="(img, pIdx) in form.images" 
+                    :key="'prev-' + pIdx" 
+                    type="button"
+                    @click="activePreviewIndex = pIdx"
+                    class="w-2.5 h-2.5 rounded-full transition-all border border-white"
+                    :class="activePreviewIndex === pIdx ? 'bg-champagne-gold scale-125' : 'bg-white/60 hover:bg-white'"
+                  ></button>
+                </div>
               </div>
               <div class="p-6 sm:p-8 text-center">
                 <p class="font-label-caps text-secondary text-[10px] mb-2 tracking-widest font-semibold">PREVIEW CATEGORIA</p>
@@ -1440,7 +1652,12 @@ onMounted(() => {
                     </div>
                     <div class="flex flex-col">
                       <span class="font-label-caps font-bold tracking-wide text-primary">{{ p.name }}</span>
-                      <span v-if="p.promo" class="text-[9px] font-label-caps text-champagne-gold tracking-widest font-bold mt-0.5">DESTAQUE ATIVO</span>
+                      <div class="flex items-center gap-2 mt-0.5">
+                        <span v-if="p.promo" class="text-[9px] font-label-caps text-champagne-gold tracking-widest font-bold">DESTAQUE ATIVO</span>
+                        <span v-if="p.images && p.images.length > 1" class="text-[9px] font-label-caps text-secondary font-semibold bg-soft-stone px-1.5 py-0.2 rounded-xs">
+                          {{ p.images.length }} FOTOS
+                        </span>
+                      </div>
                     </div>
                   </td>
                   <td class="py-4 px-6 text-secondary font-semibold">{{ p.category_name || 'Nenhuma' }}</td>

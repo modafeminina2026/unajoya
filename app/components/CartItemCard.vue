@@ -1,7 +1,6 @@
 <script setup lang="ts">
 const { 
   items, 
-  giftWrap, 
   increment, 
   decrement, 
   deleteItem 
@@ -35,6 +34,7 @@ const formatCurrency = (val: number) => {
           </h2>
           <p class="font-bold text-primary text-lg mt-1">
             {{ formatCurrency(item.product.price) }}
+            <span class="text-[11px] font-normal text-secondary font-label-caps block">à vista no PIX</span>
           </p>
         </div>
       </div>
@@ -71,20 +71,6 @@ const formatCurrency = (val: number) => {
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- Unified Gift Wrap Checkbox -->
-    <div class="bg-white rounded-lg border border-soft-stone p-6 card-shadow">
-      <label class="flex items-center gap-3 cursor-pointer group select-none">
-        <input 
-          v-model="giftWrap"
-          type="checkbox" 
-          class="w-5 h-5 border-soft-stone rounded text-primary focus:ring-primary focus:ring-offset-2 transition-all cursor-pointer"
-        >
-        <span class="font-body-md text-on-surface-variant group-hover:text-primary transition-colors">
-          Embalar p/ presente
-        </span>
-      </label>
     </div>
   </div>
 </template>
