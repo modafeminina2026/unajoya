@@ -20,6 +20,16 @@ interface CategoryData {
 const route = useRoute()
 const { client } = useSupabase()
 const { addToCart } = useCart()
+const { open: openImageModal } = useImageModal()
+
+const handleOpenModal = (product: Product, initialIndex = 0) => {
+  openImageModal({
+    title: product.name,
+    images: product.images && product.images.length > 0 ? product.images : [product.image],
+    initialIndex,
+    product
+  })
+}
 
 const category = ref<CategoryData | null>(null)
 const products = ref<Product[]>([])
@@ -236,7 +246,14 @@ watch(() => route.params.slug, () => {
               class="flex flex-col group"
             >
               <!-- Imagem -->
-              <div class="aspect-[3/4] mb-4 overflow-hidden bg-pure-white shadow-sm relative">
+              <div 
+                class="aspect-[3/4] mb-4 overflow-hidden bg-pure-white shadow-sm relative cursor-pointer"
+                @click="handleOpenModal(product)"
+                role="button"
+                tabindex="0"
+                :aria-label="`Ampliar fotos de ${product.name}`"
+                @keydown.enter="handleOpenModal(product)"
+              >
                 <!-- Imagem Principal -->
                 <img 
                   :alt="product.name" 
@@ -255,9 +272,15 @@ watch(() => route.params.slug, () => {
                   loading="lazy"
                 >
 
+                <!-- Zoom Indicator Icon on Hover -->
+                <div class="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-xs shadow">
+                  <span class="material-symbols-outlined text-[16px]">zoom_in</span>
+                </div>
+
                 <!-- Badge de Múltiplas Fotos -->
-                <div v-if="product.images.length > 1" class="absolute bottom-2 right-2 bg-primary/80 text-white font-label-caps text-[9px] px-2 py-0.5 tracking-wider rounded-xs backdrop-blur-xs opacity-90 group-hover:opacity-100 transition-opacity">
-                  +{{ product.images.length - 1 }}
+                <div v-if="product.images.length > 1" class="absolute bottom-2 right-2 bg-primary/80 text-white font-label-caps text-[9px] px-2 py-0.5 tracking-wider rounded-xs backdrop-blur-xs opacity-90 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[10px]">photo_library</span>
+                  <span>+{{ product.images.length - 1 }}</span>
                 </div>
 
                 <div class="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>

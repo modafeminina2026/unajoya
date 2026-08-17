@@ -5,6 +5,13 @@ export default defineNuxtConfig({
       inline: ['mercadopago']
     }
   },
+  vite: {
+    optimizeDeps: {
+      include: [
+        '@supabase/supabase-js'
+      ]
+    }
+  },
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   runtimeConfig: {
