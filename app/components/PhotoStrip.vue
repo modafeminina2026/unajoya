@@ -83,6 +83,17 @@ const fetchLookbookPhotos = async () => {
   }
 }
 
+const { open: openImageModal } = useImageModal()
+
+const handleOpenLookbook = (index: number) => {
+  const allImages = photos.value.map(p => p.image)
+  openImageModal({
+    title: 'Lookbook Exclusivo | UNA JOYA',
+    images: allImages,
+    initialIndex: index % photos.value.length
+  })
+}
+
 onMounted(() => {
   fetchLookbookPhotos()
 })
@@ -106,21 +117,31 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Faixa de fotos passando rápido -->
+    <!-- Faixa de fotos passando rápido (Clicável para abrir em tela cheia) -->
     <div class="photo-marquee-wrapper h-[220px] sm:h-[280px] lg:h-[340px] 3xl:h-[400px] flex items-stretch overflow-hidden">
       <div class="photo-marquee-track flex gap-[3px] items-stretch">
         <div
           v-for="(photo, idx) in track"
           :key="idx"
-          class="photo-item flex-shrink-0 w-[160px] sm:w-[200px] lg:w-[240px] 3xl:w-[300px] overflow-hidden relative"
+          class="photo-item flex-shrink-0 w-[160px] sm:w-[200px] lg:w-[240px] 3xl:w-[300px] overflow-hidden relative cursor-pointer select-none group touch-manipulation"
+          @click="handleOpenLookbook(idx)"
+          role="button"
+          tabindex="0"
+          :aria-label="`Ver foto ampliada: ${photo.alt}`"
         >
           <img
             :src="photo.image"
             :alt="photo.alt"
-            class="w-full h-full object-cover"
+            class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
             draggable="false"
           />
+          <!-- Hover/Tap Overlay with Zoom icon -->
+          <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center pointer-events-none">
+            <div class="w-10 h-10 rounded-full bg-black/60 text-pure-white flex items-center justify-center backdrop-blur-xs border border-white/20">
+              <span class="material-symbols-outlined text-xl">zoom_in</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

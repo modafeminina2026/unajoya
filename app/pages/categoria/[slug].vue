@@ -247,8 +247,8 @@ watch(() => route.params.slug, () => {
             >
               <!-- Imagem -->
               <div 
-                class="aspect-[3/4] mb-4 overflow-hidden bg-pure-white shadow-sm relative cursor-pointer"
-                @click="handleOpenModal(product)"
+                class="aspect-[3/4] mb-4 overflow-hidden bg-pure-white shadow-sm relative cursor-pointer touch-manipulation select-none active:opacity-90 transition-transform active:scale-[0.98]"
+                @click.stop="handleOpenModal(product)"
                 role="button"
                 tabindex="0"
                 :aria-label="`Ampliar fotos de ${product.name}`"
@@ -257,28 +257,28 @@ watch(() => route.params.slug, () => {
                 <!-- Imagem Principal -->
                 <img 
                   :alt="product.name" 
-                  class="w-full h-full object-cover transition-all duration-700 group-hover:scale-105" 
-                  :class="product.images.length > 1 ? 'group-hover:opacity-0' : ''"
+                  class="w-full h-full object-cover transition-all duration-700 md:group-hover:scale-105" 
+                  :class="product.images.length > 1 ? 'md:group-hover:opacity-0' : ''"
                   :src="product.images[0] || product.image"
                   loading="lazy"
                 >
 
-                <!-- Segunda Imagem (Efeito Hover) -->
+                <!-- Segunda Imagem (Efeito Hover apenas Desktop) -->
                 <img 
                   v-if="product.images.length > 1"
                   :alt="`${product.name} - Vista 2`" 
-                  class="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-all duration-700 group-hover:scale-105" 
+                  class="hidden md:block absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-all duration-700 group-hover:scale-105" 
                   :src="product.images[1]"
                   loading="lazy"
                 >
 
-                <!-- Zoom Indicator Icon on Hover -->
-                <div class="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-xs shadow">
-                  <span class="material-symbols-outlined text-[16px]">zoom_in</span>
+                <!-- Zoom Indicator Icon (always visible on mobile touch or hover on desktop) -->
+                <div class="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 text-white flex items-center justify-center opacity-70 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-xs shadow pointer-events-none">
+                  <span class="material-symbols-outlined text-[15px]">zoom_in</span>
                 </div>
 
                 <!-- Badge de Múltiplas Fotos -->
-                <div v-if="product.images.length > 1" class="absolute bottom-2 right-2 bg-primary/80 text-white font-label-caps text-[9px] px-2 py-0.5 tracking-wider rounded-xs backdrop-blur-xs opacity-90 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                <div v-if="product.images.length > 1" class="absolute bottom-2 right-2 bg-primary/85 text-white font-label-caps text-[9px] px-2 py-0.5 tracking-wider rounded-xs backdrop-blur-xs opacity-95 group-hover:opacity-100 transition-opacity flex items-center gap-1 pointer-events-none">
                   <span class="material-symbols-outlined text-[10px]">photo_library</span>
                   <span>+{{ product.images.length - 1 }}</span>
                 </div>
@@ -294,8 +294,11 @@ watch(() => route.params.slug, () => {
                 {{ product.category.name }}
               </span>
 
-              <!-- Título -->
-              <h4 class="font-body-md text-[13px] lg:text-[14px] 3xl:text-[16px] text-primary mb-2 line-clamp-2 min-h-[40px] leading-snug group-hover:text-champagne-gold transition-colors duration-300">
+              <!-- Título (Clickable to enlarge photo as well) -->
+              <h4 
+                class="font-body-md text-[13px] lg:text-[14px] 3xl:text-[16px] text-primary mb-2 line-clamp-2 min-h-[40px] leading-snug group-hover:text-champagne-gold transition-colors duration-300 cursor-pointer"
+                @click="handleOpenModal(product)"
+              >
                 {{ product.name }}
               </h4>
               
