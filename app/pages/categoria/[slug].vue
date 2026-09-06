@@ -5,7 +5,6 @@ interface Product {
   id: number
   name: string
   price: number
-  installments: string
   image: string
   images: string[]
   category: { name: string; slug: string } | null
@@ -19,7 +18,6 @@ interface CategoryData {
 
 const route = useRoute()
 const { client } = useSupabase()
-const { addToCart } = useCart()
 
 const category = ref<CategoryData | null>(null)
 const products = ref<Product[]>([])
@@ -94,23 +92,18 @@ const loadCategoryAndProducts = async () => {
 
     // 3. Filtrar expirados e mapear
     products.value = (prodData || [])
-      .filter(p => {
+      .filter((p: { created_at: string; duration?: number }) => {
         const createdAt = new Date(p.created_at)
         const durationDays = Number(p.duration || 15)
         const diffTime = (createdAt.getTime() + durationDays * 24 * 60 * 60 * 1000) - Date.now()
         return diffTime > 0
       })
-      .map(p => {
+      .map((p: { id: number; name: string; price: number; images?: string | string[]; image?: string; categories?: { name: string; slug: string } }) => {
         const price = Number(p.price) || 0
-        const isExpensive = price >= 400
-        const instCount = isExpensive ? 6 : 3
-        const instPrice = price > 0
-          ? (price / instCount).toFixed(2).replace('.', ',')
-          : '0,00'
 
         let imgList: string[] = []
         if (Array.isArray(p.images) && p.images.length > 0) {
-          imgList = p.images.map((img: any) => String(img)).filter(Boolean)
+          imgList = p.images.map(img => String(img)).filter(Boolean)
         } else if (p.images && typeof p.images === 'string') {
           try {
             const parsed = JSON.parse(p.images)
@@ -127,7 +120,6 @@ const loadCategoryAndProducts = async () => {
           id: p.id,
           name: p.name,
           price,
-          installments: price > 0 ? `${instCount}x de R$ ${instPrice} sem juros` : '',
           image: imgList[0] || p.image || '',
           images: imgList,
           category: p.categories ? { name: p.categories.name, slug: p.categories.slug } : null
@@ -139,14 +131,6 @@ const loadCategoryAndProducts = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const handleBuy = (product: Product) => {
-  addToCart({
-    name: product.name,
-    price: product.price,
-    image: product.images[0] || product.image
-  })
 }
 
 onMounted(() => {
@@ -277,31 +261,19 @@ watch(() => route.params.slug, () => {
               </h4>
               
               <!-- Preço -->
-              <div class="mb-1">
+              <div class="mb-4">
                 <p class="font-bold text-primary lg:text-[17px] 3xl:text-[20px]">
                   {{ product.price > 0 ? formatCurrency(product.price) : '—' }}
                 </p>
-                <p v-if="product.price > 0" class="text-[10px] text-[#2D8A5B] font-label-caps tracking-wider font-semibold">
-                  à vista no PIX
-                </p>
               </div>
               
-              <!-- Parcelamento -->
-              <div class="mb-4 min-h-[16px]">
-                <p v-if="product.installments" class="text-[10px] lg:text-[11px] 3xl:text-[13px] text-secondary tracking-widest uppercase font-semibold">
-                  {{ product.installments }}
-                </p>
-                <p v-else-if="product.price >= 200" class="text-[10px] text-secondary tracking-wider uppercase font-semibold mt-0.5">
-                  ou em até {{ Math.min(12, Math.floor(product.price / 100)) }}x sem juros
-                </p>
-              </div>
-              
-              <!-- Botão Comprar -->
+              <!-- Disabled Buy Button -->
               <button 
-                @click="handleBuy(product)"
-                class="w-full py-3 lg:py-4 3xl:py-5 bg-soft-stone font-label-caps text-[10px] lg:text-[11px] 3xl:text-[13px] text-primary hover:bg-primary hover:text-pure-white transition-colors duration-300 tracking-widest uppercase active:scale-95 block text-center"
+                disabled
+                aria-disabled="true"
+                class="w-full py-3 lg:py-4 3xl:py-5 bg-soft-stone font-label-caps text-[10px] lg:text-[11px] 3xl:text-[13px] text-secondary cursor-not-allowed tracking-widest uppercase block text-center opacity-70 font-bold"
               >
-                COMPRAR
+                COMPRAS PAUSADAS
               </button>
             </div>
           </div>

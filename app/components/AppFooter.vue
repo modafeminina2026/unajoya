@@ -56,9 +56,6 @@
           CNPJ 24.040.865/0001-40<br>
           JUNDIAÍ/SP - BRASIL
         </p>
-        <NuxtLink to="/painel-exclusivo-unajoya" class="text-[9px] text-secondary-fixed-dim/30 hover:text-champagne-gold uppercase tracking-widest transition-colors font-bold">
-          [ Painel ]
-        </NuxtLink>
       </div>
     </div>
 
@@ -129,11 +126,7 @@
         <p class="text-[10px] xl:text-[11px] 3xl:text-[13px] text-secondary-fixed-dim uppercase tracking-widest">
           © 2024 UNA JOYA | UNA COLLANA LTDA — CNPJ 24.040.865/0001-40 — JUNDIAÍ/SP - BRASIL
         </p>
-        <NuxtLink to="/painel-exclusivo-unajoya" class="text-[9px] text-secondary-fixed-dim/30 hover:text-champagne-gold uppercase tracking-widest transition-colors font-bold">
-          [ Painel ]
-        </NuxtLink>
       </div>
     </div>
   </footer>
 </template>
-

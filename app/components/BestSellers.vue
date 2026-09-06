@@ -5,7 +5,6 @@ interface Product {
   id: number
   name: string
   price: number
-  installments: string
   image: string
   images: string[]
   category: { name: string; slug: string } | null
@@ -14,8 +13,6 @@ interface Product {
 const { client } = useSupabase()
 const products = ref<Product[]>([])
 const loading = ref(true)
-
-const { addToCart } = useCart()
 
 const formatCurrency = (val: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
@@ -32,25 +29,19 @@ const fetchProducts = async () => {
     if (error) throw error
     
     products.value = (data || [])
-      .filter(p => {
+      .filter((p: { created_at: string; duration?: number }) => {
         // Filtra para remover produtos expirados da vitrine pública
         const createdAt = new Date(p.created_at)
         const durationDays = Number(p.duration || 15)
         const diffTime = (createdAt.getTime() + durationDays * 24 * 60 * 60 * 1000) - Date.now()
-        return diffTime > 0 // Retorna true se ainda estiver no período de exibição
+        return diffTime > 0
       })
-      .map(p => {
+      .map((p: { id: number; name: string; price: number; images?: string | string[]; image?: string; categories?: { name: string; slug: string } }) => {
         const price = Number(p.price) || 0
-        // Calcula as parcelas dinamicamente
-        const isExpensive = price >= 400
-        const instCount = isExpensive ? 6 : 3
-        const instPrice = price > 0
-          ? (price / instCount).toFixed(2).replace('.', ',')
-          : '0,00'
 
         let imgList: string[] = []
         if (Array.isArray(p.images) && p.images.length > 0) {
-          imgList = p.images.map((img: any) => String(img)).filter(Boolean)
+          imgList = p.images.map(img => String(img)).filter(Boolean)
         } else if (p.images && typeof p.images === 'string') {
           try {
             const parsed = JSON.parse(p.images)
@@ -67,7 +58,6 @@ const fetchProducts = async () => {
           id: p.id,
           name: p.name,
           price,
-          installments: price > 0 ? `${instCount}x de R$ ${instPrice} sem juros` : '',
           image: imgList[0] || p.image || '',
           images: imgList,
           category: p.categories ? { name: p.categories.name, slug: p.categories.slug } : null
@@ -80,14 +70,6 @@ const fetchProducts = async () => {
   }
 }
 
-const handleBuy = (product: Product) => {
-  addToCart({
-    name: product.name,
-    price: product.price,
-    image: product.images[0] || product.image
-  })
-}
-
 onMounted(() => {
   fetchProducts()
 })
@@ -96,7 +78,7 @@ onMounted(() => {
 <template>
   <section class="py-16 lg:py-24 3xl:py-32 px-margin-mobile lg:px-margin-desktop xl:px-margin-desktop-xl 3xl:px-[160px] bg-surface-container-low border-b border-soft-stone">
     <div class="mb-12 lg:mb-16 3xl:mb-20 flex flex-col items-center">
-      <h2 class="font-display-lg text-headline-lg-mobile lg:text-[40px] xl:text-[48px] 3xl:text-[60px] text-primary tracking-[0.2em] mb-2 uppercase">MAIS VENDIDOS</h2>
+      <h2 class="font-display-lg text-headline-lg-mobile lg:text-[40px] xl:text-[48px] 3xl:text-[60px] text-primary tracking-[0.2em] mb-2 uppercase">DESTAQUES</h2>
       <div class="w-12 lg:w-16 h-[2px] bg-primary"></div>
     </div>
     
@@ -161,35 +143,21 @@ onMounted(() => {
         </h4>
         
         <!-- Product Price -->
-        <div class="mb-1">
+        <div class="mb-4">
           <p class="font-bold text-primary lg:text-[17px] 3xl:text-[20px]">
             {{ product.price > 0 ? formatCurrency(product.price) : '—' }}
           </p>
-          <p v-if="product.price > 0" class="text-[10px] text-[#2D8A5B] font-label-caps tracking-wider font-semibold">
-            à vista no PIX
-          </p>
         </div>
         
-        <!-- Installments -->
-        <div class="mb-4 min-h-[16px]">
-          <p v-if="product.installments" class="text-[10px] lg:text-[11px] 3xl:text-[13px] text-secondary tracking-widest uppercase font-semibold">
-            {{ product.installments }}
-          </p>
-          <p v-else-if="product.price >= 200" class="text-[10px] text-secondary tracking-wider uppercase font-semibold mt-0.5">
-            ou em até {{ Math.min(12, Math.floor(product.price / 100)) }}x sem juros
-          </p>
-        </div>
-        
-        <!-- Buy Button -->
+        <!-- Disabled Buy Button -->
         <button 
-          @click="handleBuy(product)"
-          class="w-full py-3 lg:py-4 3xl:py-5 bg-soft-stone font-label-caps text-[10px] lg:text-[11px] 3xl:text-[13px] text-primary hover:bg-primary hover:text-pure-white transition-colors duration-300 tracking-widest uppercase active:scale-95 block text-center"
+          disabled
+          aria-disabled="true"
+          class="w-full py-3 lg:py-4 3xl:py-5 bg-soft-stone font-label-caps text-[10px] lg:text-[11px] 3xl:text-[13px] text-secondary cursor-not-allowed tracking-widest uppercase block text-center opacity-70 font-bold"
         >
-          COMPRAR
+          COMPRAS PAUSADAS
         </button>
       </div>
     </div>
   </section>
 </template>
-
-
