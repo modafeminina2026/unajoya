@@ -21,9 +21,19 @@ interface AdminProduct {
 }
 
 const { client } = useSupabase()
+const { open: openImageModal } = useImageModal()
 const products = ref<AdminProduct[]>([])
 const loading = ref(true)
 const isSidebarOpen = ref(false)
+
+const handleOpenImageModal = (p: AdminProduct) => {
+  openImageModal({
+    title: p.name,
+    images: p.images && p.images.length > 0 ? p.images : [p.image],
+    initialIndex: 0,
+    product: p
+  })
+}
 
 // Mock de imagens para facilitar testes rápidos
 const mockImages = [
@@ -1647,8 +1657,19 @@ onMounted(() => {
                   class="border-b border-soft-stone/40 hover:bg-surface-container-low transition-colors"
                 >
                   <td class="py-4 px-6 flex items-center gap-4">
-                    <div class="w-12 h-12 bg-soft-stone flex-shrink-0 border border-soft-stone rounded overflow-hidden">
+                    <div 
+                      class="w-12 h-12 bg-soft-stone flex-shrink-0 border border-soft-stone rounded overflow-hidden relative group/thumb cursor-pointer select-none"
+                      @click="handleOpenImageModal(p)"
+                      :title="`Clique para visualizar ${p.images?.length || 1} foto(s)`"
+                    >
                       <img class="w-full h-full object-cover" :src="p.image" :alt="p.name"/>
+                      
+                      <!-- Overlay com a quantidade de fotos sobre a miniatura (estilo solicitado) -->
+                      <div class="absolute inset-0 bg-black/25 flex items-center justify-center group-hover/thumb:bg-black/45 transition-colors">
+                        <span class="text-pure-white font-bold text-sm sm:text-base tracking-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+                          {{ p.images?.length || 1 }}
+                        </span>
+                      </div>
                     </div>
                     <div class="flex flex-col">
                       <span class="font-label-caps font-bold tracking-wide text-primary">{{ p.name }}</span>

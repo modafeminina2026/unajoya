@@ -1,8 +1,16 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  ssr: false,
   nitro: {
     externals: {
       inline: ['mercadopago']
+    }
+  },
+  vite: {
+    optimizeDeps: {
+      include: [
+        '@supabase/supabase-js'
+      ]
     }
   },
   compatibilityDate: '2025-07-15',
