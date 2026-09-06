@@ -34,7 +34,7 @@ const formatCurrency = (val: number) => {
           </h2>
           <p class="font-bold text-primary text-lg mt-1">
             {{ formatCurrency(item.product.price) }}
-            <span class="text-[11px] font-normal text-secondary font-label-caps block">à vista no PIX</span>
+            <span class="text-[11px] font-normal text-secondary font-label-caps block">VALOR CADASTRADO</span>
           </p>
         </div>
       </div>
