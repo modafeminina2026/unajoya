@@ -19,18 +19,20 @@ const isZoomed = ref(false)
 const lastTapTime = ref(0)
 
 const onTouchStart = (e: TouchEvent) => {
-  if (e.touches.length === 1) {
-    touchStartX.value = e.touches[0].clientX
-    touchStartY.value = e.touches[0].clientY
-    touchEndX.value = e.touches[0].clientX
-    touchEndY.value = e.touches[0].clientY
+  const touch = e.touches[0]
+  if (touch && e.touches.length === 1) {
+    touchStartX.value = touch.clientX
+    touchStartY.value = touch.clientY
+    touchEndX.value = touch.clientX
+    touchEndY.value = touch.clientY
   }
 }
 
 const onTouchMove = (e: TouchEvent) => {
-  if (e.touches.length === 1 && !isZoomed.value) {
-    touchEndX.value = e.touches[0].clientX
-    touchEndY.value = e.touches[0].clientY
+  const touch = e.touches[0]
+  if (touch && e.touches.length === 1 && !isZoomed.value) {
+    touchEndX.value = touch.clientX
+    touchEndY.value = touch.clientY
   }
 }
 
@@ -125,8 +127,8 @@ watch(isOpen, (openVal) => {
 <template>
   <Teleport to="body">
     <Transition name="modal-fade">
-      <div 
-        v-if="isOpen" 
+      <div
+        v-if="isOpen"
         class="fixed inset-0 z-[9999] flex flex-col justify-between bg-black/95 backdrop-blur-lg select-none touch-manipulation"
         role="dialog"
         aria-modal="true"
@@ -149,9 +151,9 @@ watch(isOpen, (openVal) => {
           </div>
 
           <!-- Close 'X' Button (Large touch target for phones) -->
-          <button 
+          <button
             type="button"
-            aria-label="Fechar visualização de imagem" 
+            aria-label="Fechar visualização de imagem"
             class="flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/15 hover:bg-white/30 text-pure-white hover:text-champagne-gold transition-all duration-200 border border-white/25 active:scale-90 flex-shrink-0 cursor-pointer shadow-lg"
             @click="close"
           >
@@ -160,18 +162,19 @@ watch(isOpen, (openVal) => {
         </header>
 
         <!-- Center: Image Display with Navigation Controls -->
-        <main 
+        <main
           class="relative flex-1 flex flex-col items-center justify-center px-2 sm:px-12 overflow-hidden my-auto w-full"
+          data-testid="modal-touch-container"
           @click.self="close"
           @touchstart="onTouchStart"
           @touchmove="onTouchMove"
           @touchend="onTouchEnd"
         >
           <!-- Previous Arrow Button -->
-          <button 
+          <button
             v-if="images.length > 1"
             type="button"
-            aria-label="Foto anterior" 
+            aria-label="Foto anterior"
             class="absolute left-2 sm:left-6 z-20 flex items-center justify-center w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-black/50 hover:bg-black/80 text-pure-white hover:text-champagne-gold border border-white/20 transition-all duration-200 hover:scale-105 active:scale-90 cursor-pointer backdrop-blur-md shadow-xl"
             @click.stop="prev"
           >
@@ -179,16 +182,16 @@ watch(isOpen, (openVal) => {
           </button>
 
           <!-- Active Image Container -->
-          <div 
+          <div
             class="relative max-w-[96vw] sm:max-w-[85vw] lg:max-w-[75vw] max-h-[72vh] sm:max-h-[75vh] flex items-center justify-center overflow-hidden transition-transform duration-300"
             :class="isZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'"
             @click.stop="handleImageDoubleTap"
           >
             <Transition name="slide-image" mode="out-in">
-              <img 
+              <img
                 :key="currentIndex"
-                :src="images[currentIndex]" 
-                :alt="`${title || 'Joia Una Joya'} - Foto ${currentIndex + 1}`" 
+                :src="images[currentIndex]"
+                :alt="`${title || 'Joia Una Joya'} - Foto ${currentIndex + 1}`"
                 class="max-w-full max-h-[70vh] sm:max-h-[74vh] object-contain rounded-sm shadow-2xl transition-transform duration-300 pointer-events-auto"
                 :class="isZoomed ? 'scale-150 sm:scale-175' : 'scale-100'"
                 draggable="false"
@@ -197,10 +200,10 @@ watch(isOpen, (openVal) => {
           </div>
 
           <!-- Next Arrow Button -->
-          <button 
+          <button
             v-if="images.length > 1"
             type="button"
-            aria-label="Próxima foto" 
+            aria-label="Próxima foto"
             class="absolute right-2 sm:right-6 z-20 flex items-center justify-center w-10 h-10 sm:w-14 sm:h-14 rounded-full bg-black/50 hover:bg-black/80 text-pure-white hover:text-champagne-gold border border-white/20 transition-all duration-200 hover:scale-105 active:scale-90 cursor-pointer backdrop-blur-md shadow-xl"
             @click.stop="next"
           >
@@ -224,12 +227,12 @@ watch(isOpen, (openVal) => {
         <!-- Bottom Controls: Thumbnails Carousel & Buy CTA -->
         <footer class="flex flex-col items-center gap-3 px-4 py-3 sm:py-4 z-30 bg-gradient-to-t from-black/95 via-black/70 to-transparent">
           <!-- Thumbnail Carousel Bar (se houver mais de 1 imagem) -->
-          <div 
+          <div
             v-if="images.length > 1"
             class="hidden sm:flex items-center gap-2 sm:gap-3 overflow-x-auto max-w-full py-1 px-2 no-scrollbar"
           >
-            <button 
-              v-for="(img, idx) in images" 
+            <button
+              v-for="(img, idx) in images"
               :key="idx"
               type="button"
               :aria-label="`Ver foto ${idx + 1}`"
@@ -237,9 +240,9 @@ watch(isOpen, (openVal) => {
               :class="idx === currentIndex ? 'border-champagne-gold ring-2 ring-champagne-gold/50 scale-105 opacity-100' : 'border-white/20 opacity-50 hover:opacity-90'"
               @click.stop="setIndex(idx)"
             >
-              <img 
-                :src="img" 
-                :alt="`Miniatura ${idx + 1}`" 
+              <img
+                :src="img"
+                :alt="`Miniatura ${idx + 1}`"
                 class="w-full h-full object-cover"
                 loading="lazy"
               />
@@ -248,7 +251,7 @@ watch(isOpen, (openVal) => {
 
           <!-- CTA Button if product is passed -->
           <div v-if="currentProduct" class="flex items-center gap-4 w-full sm:w-auto justify-center">
-            <button 
+            <button
               type="button"
               class="w-full sm:w-auto px-8 py-3.5 bg-champagne-gold text-primary font-label-caps text-xs sm:text-sm tracking-widest uppercase font-bold hover:bg-pure-white hover:text-primary transition-all duration-300 rounded-xs shadow-xl active:scale-95 flex items-center justify-center gap-2"
               @click="handleBuyFromModal"

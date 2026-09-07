@@ -1,0 +1,19 @@
+﻿/* Estilos visuais administrativos restritos ao container .admin-panel */
+.admin-panel .luxury-shadow {
+  box-shadow: 0 10px 30px -15px rgba(0, 0, 0, 0.05);
+}
+
+.admin-panel .fade-in {
+  animation: adminFadeIn 0.8s ease-out forwards;
+}
+
+@keyframes adminFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

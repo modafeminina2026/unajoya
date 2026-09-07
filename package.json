@@ -7,7 +7,9 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "test": "vitest run",
+    "typecheck:tests": "vue-tsc --noEmit -p tsconfig.tests.json"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1085.0",
@@ -21,6 +23,12 @@
     "vue-router": "^5.1.0"
   },
   "devDependencies": {
-    "@types/nodemailer": "^8.0.1"
+    "@types/nodemailer": "^8.0.1",
+    "@vue/test-utils": "^2.5.0",
+    "happy-dom": "^20.14.0",
+    "typescript": "~5.7.3",
+    "vitest": "^5.0.0",
+    "vue-tsc": "^2.2.12",
+    "@vitejs/plugin-vue": "^6.0.7"
   }
 }
