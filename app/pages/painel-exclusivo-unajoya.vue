@@ -141,6 +141,7 @@ const {
   isAdmin,
   checking: checkingAuth,
   recovery: passwordRecovery,
+  linkError: authLinkError,
   init: initAuth,
   signIn,
   signOut,
@@ -225,6 +226,7 @@ onMounted(async () => {
     :sign-in="signIn"
     :send-reset="sendReset"
     :update-password="updatePassword"
+    :notice="authLinkError"
   />
   <div v-else class="admin-panel bg-surface font-body-md text-on-surface overflow-x-hidden min-h-screen">
     <AdminSidebar

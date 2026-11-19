@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import type { Session } from '@supabase/supabase-js'
-import { useSupabase } from '~/composables/useSupabase'
+import { useSupabase, openedFromRecoveryLink, authLinkError } from '~/composables/useSupabase'
 
 /**
  * Autenticação do painel por e-mail + senha (Supabase Auth).
@@ -11,7 +11,8 @@ import { useSupabase } from '~/composables/useSupabase'
 const session = ref<Session | null>(null)
 const isAdmin = ref(false)
 const checking = ref(true)
-const recovery = ref(false)
+const recovery = ref(openedFromRecoveryLink)
+const linkError = ref<string | null>(authLinkError)
 let initialized = false
 
 const friendlyError = (message: string): string => {
@@ -86,5 +87,5 @@ export const useAdminAuth = () => {
     return null
   }
 
-  return { session, isAdmin, checking, recovery, init, signIn, signOut, sendReset, updatePassword }
+  return { session, isAdmin, checking, recovery, linkError, init, signIn, signOut, sendReset, updatePassword }
 }

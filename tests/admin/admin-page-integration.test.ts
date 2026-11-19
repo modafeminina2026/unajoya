@@ -181,6 +181,7 @@ vi.mock('../../app/composables/admin/useAdminAuth', () => ({
     isAdmin: ref(true),
     checking: ref(false),
     recovery: ref(false),
+    linkError: ref(null),
     init: vi.fn().mockResolvedValue(undefined),
     signIn: vi.fn(),
     signOut: vi.fn(),

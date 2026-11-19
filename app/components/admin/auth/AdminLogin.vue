@@ -7,11 +7,13 @@ const props = defineProps<{
   signIn: (email: string, password: string) => Promise<string | null>
   sendReset: (email: string) => Promise<string | null>
   updatePassword: (password: string) => Promise<string | null>
+  /** aviso vindo do link do e-mail (ex.: expirado) */
+  notice?: string | null
 }>()
 
 const email = ref('')
 const password = ref('')
-const mode = ref<'login' | 'forgot'>('login')
+const mode = ref<'login' | 'forgot'>(props.notice ? 'forgot' : 'login')
 const busy = ref(false)
 const error = ref('')
 const info = ref('')
@@ -63,6 +65,7 @@ const submit = async () => {
           <input v-model="password" type="password" required :minlength="recovery ? 8 : undefined" :autocomplete="recovery ? 'new-password' : 'current-password'" class="mt-1 w-full border border-soft-stone bg-transparent px-4 py-3 text-primary focus:outline-none focus:border-primary" />
         </label>
 
+        <p v-if="notice && !recovery" class="text-sm text-error" role="alert" data-testid="login-notice">{{ notice }}</p>
         <p v-if="error" class="text-sm text-error" role="alert" data-testid="login-error">{{ error }}</p>
         <p v-if="info" class="text-sm text-secondary" role="status">{{ info }}</p>
 
