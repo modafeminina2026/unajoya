@@ -89,8 +89,13 @@ describe('Componentes Administrativos - Testes de Comportamento Isolados', () =>
     expect(wrapper.text()).toContain('PAINEL ADMINISTRATIVO')
     expect(wrapper.text()).toContain('4') // Badge de 4 pedidos pendentes
 
-    // Ordem canônica completa das 6 abas na interface com seus rótulos em português
+    // Ordem canônica completa das 11 abas (financeiro + boutique) com seus rótulos em português
     const expectedTabs = [
+      { id: 'dashboard', label: 'DASHBOARD' },
+      { id: 'sales', label: 'VENDAS' },
+      { id: 'contacts', label: 'CONTATOS WHATSAPP' },
+      { id: 'expenses', label: 'GASTOS' },
+      { id: 'import', label: 'IMPORTAR PLANILHA' },
       { id: 'orders', label: 'PEDIDOS' },
       { id: 'products', label: 'PRODUTOS' },
       { id: 'categories', label: 'CATEGORIAS' },
@@ -100,9 +105,9 @@ describe('Componentes Administrativos - Testes de Comportamento Isolados', () =>
     ] as const
 
     const tabLinks = wrapper.findAll('a[data-admin-tab]')
-    expect(tabLinks).toHaveLength(6)
+    expect(tabLinks).toHaveLength(11)
 
-    // Validação estrita sem if: todas as 6 abas devem existir na ordem exata e emitir os eventos corretos
+    // Validação estrita sem if: todas as 11 abas devem existir na ordem exata e emitir os eventos corretos
     for (let i = 0; i < expectedTabs.length; i++) {
       const expected = expectedTabs[i]!
       const link = tabLinks[i]!

@@ -1,190 +1,28 @@
-﻿<script setup lang="ts">
-import { ref, onMounted } from 'vue'
+<script setup lang="ts">
+import { computed, onMounted } from 'vue'
+import ProductGrid from './ProductGrid.vue'
+import { filterAndSort } from '~/utils/catalog'
 
-interface Product {
-  id: number
-  name: string
-  price: number
-  image: string
-  images: string[]
-  category: { name: string; slug: string } | null
-}
+const { products, loading, loaded, load } = useStoreProducts()
+onMounted(() => { void load() })
 
-const { client } = useSupabase()
-const products = ref<Product[]>([])
-const loading = ref(true)
-
-const { open: openImageModal } = useImageModal()
-
-const handleOpenModal = (product: Product, initialIndex = 0) => {
-  openImageModal({
-    title: product.name,
-    images: product.images && product.images.length > 0 ? product.images : [product.image],
-    initialIndex,
-    product
-  })
-}
-
-const formatCurrency = (val: number) => {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
-}
-
-const fetchProducts = async () => {
-  loading.value = true
-  try {
-    const { data, error } = await client
-      .from('products')
-      .select('*, categories(name, slug)')
-      .order('id', { ascending: true })
-    
-    if (error) throw error
-    
-    products.value = (data || [])
-      .filter((p: { created_at: string; duration?: number }) => {
-        // Filtra para remover produtos expirados da vitrine pública
-        const createdAt = new Date(p.created_at)
-        const durationDays = Number(p.duration || 15)
-        const diffTime = (createdAt.getTime() + durationDays * 24 * 60 * 60 * 1000) - Date.now()
-        return diffTime > 0
-      })
-      .map((p: { id: number; name: string; price: number; images?: string | string[]; image?: string; categories?: { name: string; slug: string } }) => {
-        const price = Number(p.price) || 0
-
-        let imgList: string[] = []
-        if (Array.isArray(p.images) && p.images.length > 0) {
-          imgList = p.images.map(img => String(img)).filter(Boolean)
-        } else if (p.images && typeof p.images === 'string') {
-          try {
-            const parsed = JSON.parse(p.images)
-            if (Array.isArray(parsed)) imgList = parsed.filter(Boolean)
-          } catch {
-            imgList = [p.images]
-          }
-        }
-        if (imgList.length === 0 && p.image) {
-          imgList = [p.image]
-        }
-
-        return {
-          id: p.id,
-          name: p.name,
-          price,
-          image: imgList[0] || p.image || '',
-          images: imgList,
-          category: p.categories ? { name: p.categories.name, slug: p.categories.slug } : null
-        }
-      })
-  } catch (err) {
-    console.error('Erro ao carregar produtos:', err)
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => {
-  fetchProducts()
-})
+// Destaques: disponíveis primeiro, até 8 peças
+const featured = computed(() => filterAndSort(products.value).slice(0, 8))
 </script>
 
 <template>
   <section class="py-16 lg:py-24 3xl:py-32 px-margin-mobile lg:px-margin-desktop xl:px-margin-desktop-xl 3xl:px-[160px] bg-surface-container-low border-b border-soft-stone">
-    <div class="mb-12 lg:mb-16 3xl:mb-20 flex flex-col items-center">
+    <div class="mb-10 lg:mb-16 3xl:mb-20 flex flex-col items-center">
       <h2 class="font-display-lg text-headline-lg-mobile lg:text-[40px] xl:text-[48px] 3xl:text-[60px] text-primary tracking-[0.2em] mb-2 uppercase">DESTAQUES</h2>
       <div class="w-12 lg:w-16 h-[2px] bg-primary"></div>
     </div>
-    
-    <!-- Loading State Skeleton -->
-    <div v-if="loading" class="grid grid-cols-2 lg:grid-cols-4 gap-x-4 lg:gap-x-6 xl:gap-x-8 3xl:gap-x-10 gap-y-8 lg:gap-y-12">
-      <div v-for="i in 4" :key="i" class="animate-pulse flex flex-col">
-        <div class="aspect-[3/4] mb-4 bg-soft-stone rounded-sm"></div>
-        <div class="h-4 bg-soft-stone w-3/4 mb-3 rounded"></div>
-        <div class="h-4 bg-soft-stone w-1/4 mb-2 rounded"></div>
-        <div class="h-3 bg-soft-stone w-1/2 mb-5 rounded"></div>
-        <div class="h-12 bg-soft-stone w-full rounded-sm"></div>
-      </div>
-    </div>
 
-    <!-- Product Grid -->
-    <div v-else class="grid grid-cols-2 lg:grid-cols-4 gap-x-4 lg:gap-x-6 xl:gap-x-8 3xl:gap-x-10 gap-y-8 lg:gap-y-12">
-      <div 
-        v-for="product in products" 
-        :key="product.id"
-        class="flex flex-col group"
-      >
-        <!-- Product Image Container -->
-        <div 
-          class="aspect-[3/4] mb-4 overflow-hidden bg-pure-white shadow-sm relative cursor-pointer touch-manipulation select-none active:opacity-90 transition-transform active:scale-[0.98]"
-          @click.stop="handleOpenModal(product)"
-          role="button"
-          tabindex="0"
-          :aria-label="`Ampliar fotos de ${product.name}`"
-          @keydown.enter="handleOpenModal(product)"
-        >
-          <!-- Main Image -->
-          <img 
-            :alt="product.name" 
-            class="w-full h-full object-cover transition-all duration-700 md:group-hover:scale-105" 
-            :class="product.images.length > 1 ? 'md:group-hover:opacity-0' : ''"
-            :src="product.images[0] || product.image"
-            loading="lazy"
-          >
-          
-          <!-- Secondary Image (Hover Effect only on Desktop/Hover devices) -->
-          <img 
-            v-if="product.images.length > 1"
-            :alt="`${product.name} - Vista 2`" 
-            class="hidden md:block absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-all duration-700 group-hover:scale-105" 
-            :src="product.images[1]"
-            loading="lazy"
-          >
+    <ProductGrid :products="featured" :loading="loading || !loaded" :toolbar="false" :skeleton-count="4" />
 
-          <!-- Zoom Indicator Icon (always visible on mobile touch or hover on desktop) -->
-          <div class="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 text-white flex items-center justify-center opacity-70 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-xs shadow pointer-events-none">
-            <span class="material-symbols-outlined text-[15px]">zoom_in</span>
-          </div>
-
-          <!-- Multiple Photos Badge -->
-          <div v-if="product.images.length > 1" class="absolute bottom-2 right-2 bg-primary/85 text-white font-label-caps text-[9px] px-2 py-0.5 tracking-wider rounded-xs backdrop-blur-xs opacity-95 group-hover:opacity-100 transition-opacity flex items-center gap-1 pointer-events-none">
-            <span class="material-symbols-outlined text-[10px]">photo_library</span>
-            <span>+{{ product.images.length - 1 }}</span>
-          </div>
-
-          <div class="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-        </div>
-        
-        <!-- Category Badge -->
-        <NuxtLink 
-          v-if="product.category" 
-          :to="`/categoria/${product.category.slug}`"
-          class="text-[10px] font-label-caps tracking-[0.15em] text-champagne-gold hover:opacity-80 transition-opacity mb-1 inline-block"
-        >
-          {{ product.category.name }}
-        </NuxtLink>
-        
-        <!-- Product Title (Clickable to enlarge photo as well) -->
-        <h4 
-          class="font-body-md text-[13px] lg:text-[14px] 3xl:text-[16px] text-primary mb-2 line-clamp-2 min-h-[40px] leading-snug group-hover:text-champagne-gold transition-colors duration-300 cursor-pointer"
-          @click="handleOpenModal(product)"
-        >
-          {{ product.name }}
-        </h4>
-        
-        <!-- Product Price -->
-        <div class="mb-4">
-          <p class="font-bold text-primary lg:text-[17px] 3xl:text-[20px]">
-            {{ product.price > 0 ? formatCurrency(product.price) : '—' }}
-          </p>
-        </div>
-        
-        <!-- Disabled Buy Button -->
-        <button 
-          disabled
-          aria-disabled="true"
-          class="w-full py-3 lg:py-4 3xl:py-5 bg-soft-stone font-label-caps text-[10px] lg:text-[11px] 3xl:text-[13px] text-secondary cursor-not-allowed tracking-widest uppercase block text-center opacity-70 font-bold"
-        >
-          COMPRAS PAUSADAS
-        </button>
-      </div>
+    <div v-if="loaded && products.length > featured.length" class="mt-12 text-center">
+      <NuxtLink to="/busca" class="inline-flex items-center justify-center min-h-[44px] px-8 border border-primary text-primary font-label-caps text-xs tracking-widest uppercase hover:bg-primary hover:text-pure-white transition-colors">
+        Ver todas as peças
+      </NuxtLink>
     </div>
   </section>
 </template>

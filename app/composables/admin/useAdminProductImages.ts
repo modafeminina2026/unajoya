@@ -1,6 +1,7 @@
 ﻿import { ref } from 'vue'
 import type { AdminProductFormState } from '~/types/admin'
 import { getErrorMessage } from '~/types/admin'
+import { getAdminAuthHeaders } from '~/composables/admin/adminUploadHeaders'
 
 export const mockImages = [
   'https://lh3.googleusercontent.com/aida-public/AB6AXuBcjbHBYrD0eCsPDyqzE2DUcdTEB1Qjw11NnjxixO5hqQcVdr9YufYejTrViLwTZQimN4L2FgCKpwxARwUVfeOPX-F92-adpCIttVmJvGm-So4EhO04oMN72CkCwG6-W4n6CZUvKXkdHsoXLZipYaZwT_EYfczEspNDDtqO-6KQiRMlUn58S4VVg4oQ7V9ao3ID3s69SAkUfG6PCVXT_HE8tLOKg8yK6fF1SN4G0tEQDnK2ohrHe5IujFPWXJqItdd0NYZDTMptmkZ6',
@@ -55,7 +56,8 @@ export const useAdminProductImages = (form: { value: AdminProductFormState }) =>
     try {
       const response = await $fetch<{ success: boolean; url: string }>('/api/upload', {
         method: 'POST',
-        body: formData
+        body: formData,
+        headers: await getAdminAuthHeaders()
       })
 
       if (response.success && response.url) {

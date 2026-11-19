@@ -1,6 +1,7 @@
 ﻿import { ref } from 'vue'
 import type { AboutUsFormState } from '~/types/admin'
 import { getErrorMessage } from '~/types/admin'
+import { getAdminAuthHeaders } from '~/composables/admin/adminUploadHeaders'
 
 export const useAdminAbout = () => {
   const { client } = useSupabase()
@@ -73,7 +74,8 @@ export const useAdminAbout = () => {
     try {
       const response = await $fetch<{ success: boolean; url: string }>('/api/upload', {
         method: 'POST',
-        body: formData
+        body: formData,
+        headers: await getAdminAuthHeaders()
       })
 
       if (response.success && response.url) {

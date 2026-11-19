@@ -2,7 +2,7 @@
 const { isCartEmpty, totalItemsCount } = useCart()
 
 definePageMeta({
-  title: 'UNA JOYA - Sacola de Compras'
+  title: 'UNA JOYA - Sua Sacola'
 })
 
 useHead({
@@ -20,17 +20,6 @@ useHead({
     <!-- Conteúdo Principal -->
     <main class="pt-32 lg:pt-40 xl:pt-44 pb-24 px-margin-mobile lg:px-margin-desktop xl:px-margin-desktop-xl max-w-5xl mx-auto">
       
-      <!-- Aviso de Manutenção de Compras -->
-      <div class="mb-8 p-6 bg-surface-container-low border border-soft-stone rounded-sm text-center space-y-2 card-shadow">
-        <div class="flex items-center justify-center gap-2 text-primary font-bold text-sm font-label-caps">
-          <span class="material-symbols-outlined text-lg text-champagne-gold">build_circle</span>
-          <span>MANUTENÇÃO TÉCNICA PREVENTIVA</span>
-        </div>
-        <p class="text-secondary text-sm max-w-xl mx-auto leading-relaxed">
-          Compras online temporariamente pausadas. Estamos realizando melhorias para oferecer uma experiência mais segura. Você ainda pode navegar pelas coleções da Una Joya.
-        </p>
-      </div>
-
       <div v-if="!isCartEmpty">
         <!-- Layout Mobile -->
         <div class="lg:hidden space-y-4">

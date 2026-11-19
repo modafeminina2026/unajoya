@@ -12,9 +12,9 @@
         <ul class="flex flex-col space-y-4 font-label-caps text-label-caps tracking-widest font-bold">
           <li><NuxtLink class="hover:text-champagne-gold transition-colors" to="/meu-pedido">MEU PEDIDO</NuxtLink></li>
           <li><a class="hover:text-champagne-gold transition-colors" href="#">CONTATO</a></li>
-          <li><a class="hover:text-champagne-gold transition-colors" href="#">PROMOÇÕES</a></li>
+          <li><a class="hover:text-champagne-gold transition-colors" href="/categoria/sale">PROMOÇÕES</a></li>
           <li><a class="hover:text-champagne-gold transition-colors" href="#">TROCAS E DEVOLUÇÕES</a></li>
-          <li><a class="hover:text-champagne-gold transition-colors underline" href="#">SOBRE NÓS</a></li>
+          <li><a class="hover:text-champagne-gold transition-colors underline" href="/#sobre">SOBRE NÓS</a></li>
           <li><a class="hover:text-champagne-gold transition-colors" href="#">POLÍTICA DE PRIVACIDADE</a></li>
         </ul>
       </div>
@@ -86,9 +86,9 @@
           <ul class="flex flex-col space-y-3 font-label-caps text-[11px] xl:text-[12px] 3xl:text-[14px] tracking-widest font-bold">
             <li><NuxtLink class="hover:text-champagne-gold transition-colors" to="/meu-pedido">MEU PEDIDO</NuxtLink></li>
             <li><a class="hover:text-champagne-gold transition-colors" href="#">CONTATO</a></li>
-            <li><a class="hover:text-champagne-gold transition-colors" href="#">PROMOÇÕES</a></li>
+            <li><a class="hover:text-champagne-gold transition-colors" href="/categoria/sale">PROMOÇÕES</a></li>
             <li><a class="hover:text-champagne-gold transition-colors" href="#">TROCAS E DEVOLUÇÕES</a></li>
-            <li><a class="hover:text-champagne-gold transition-colors underline" href="#">SOBRE NÓS</a></li>
+            <li><a class="hover:text-champagne-gold transition-colors underline" href="/#sobre">SOBRE NÓS</a></li>
             <li><a class="hover:text-champagne-gold transition-colors" href="#">POLÍTICA DE PRIVACIDADE</a></li>
           </ul>
         </div>

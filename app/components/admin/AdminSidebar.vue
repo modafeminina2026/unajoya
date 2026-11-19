@@ -5,12 +5,23 @@ defineProps<{
   currentTab: AdminTab
   pendingOrdersCount: number
   isSidebarOpen: boolean
+  newContactsCount?: number
+  userEmail?: string | null
 }>()
 
 const emit = defineEmits<{
   'update:currentTab': [tab: AdminTab]
   'update:isSidebarOpen': [isOpen: boolean]
+  signOut: []
 }>()
+
+const financeTabs: { tab: AdminTab; icon: string; label: string }[] = [
+  { tab: 'dashboard', icon: 'monitoring', label: 'DASHBOARD' },
+  { tab: 'sales', icon: 'point_of_sale', label: 'VENDAS' },
+  { tab: 'contacts', icon: 'chat', label: 'CONTATOS WHATSAPP' },
+  { tab: 'expenses', icon: 'receipt_long', label: 'GASTOS' },
+  { tab: 'import', icon: 'upload_file', label: 'IMPORTAR PLANILHA' }
+]
 
 const setTab = (tab: AdminTab) => {
   emit('update:currentTab', tab)
@@ -63,8 +74,22 @@ const setTab = (tab: AdminTab) => {
           <p class="font-label-caps text-[10px] text-secondary mt-2 opacity-60">PAINEL ADMINISTRATIVO</p>
         </div>
 
-        <nav class="flex-1 space-y-2">
-          <p class="font-label-caps text-secondary mb-4 text-[11px] tracking-widest">GERENCIAR BOUTIQUE</p>
+        <nav class="flex-1 space-y-2 overflow-y-auto -mx-2 px-2">
+          <p class="font-label-caps text-secondary mb-2 text-[11px] tracking-widest">FINANCEIRO</p>
+          <a
+            v-for="item in financeTabs"
+            :key="item.tab"
+            class="flex items-center gap-4 py-3 transition-all cursor-pointer"
+            :class="currentTab === item.tab ? 'text-primary font-bold border-b border-primary' : 'text-secondary hover:text-primary'"
+            href="#"
+            :data-admin-tab="item.tab"
+            @click.prevent="setTab(item.tab)"
+          >
+            <span class="material-symbols-outlined">{{ item.icon }}</span>
+            <span class="font-label-caps">{{ item.label }}</span>
+            <span v-if="item.tab === 'contacts' && (newContactsCount ?? 0) > 0" class="ml-auto bg-champagne-gold text-primary text-[10px] font-bold rounded-full min-w-5 h-5 px-1 flex items-center justify-center">{{ newContactsCount }}</span>
+          </a>
+          <p class="font-label-caps text-secondary mb-2 mt-8 text-[11px] tracking-widest">GERENCIAR BOUTIQUE</p>
           <a
             class="flex items-center gap-4 py-4 transition-all cursor-pointer"
             :class="currentTab === 'orders' ? 'text-primary font-bold border-b border-primary' : 'text-secondary hover:text-primary'"
@@ -137,10 +162,11 @@ const setTab = (tab: AdminTab) => {
         </nav>
 
         <div class="mt-auto pt-8 border-t border-soft-stone">
-          <NuxtLink to="/" class="flex items-center gap-4 text-error opacity-70 hover:opacity-100 transition-opacity" @click="emit('update:isSidebarOpen', false)">
+          <p v-if="userEmail" class="text-[11px] text-secondary mb-3 truncate" :title="userEmail">{{ userEmail }}</p>
+          <button type="button" class="flex items-center gap-4 text-error opacity-70 hover:opacity-100 transition-opacity" data-testid="sign-out" @click="emit('update:isSidebarOpen', false); emit('signOut')">
             <span class="material-symbols-outlined">logout</span>
-            <span class="font-label-caps">VOLTAR</span>
-          </NuxtLink>
+            <span class="font-label-caps">SAIR</span>
+          </button>
         </div>
       </div>
     </aside>

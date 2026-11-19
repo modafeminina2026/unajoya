@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { responsiveImage } from '~/utils/catalog'
 
 interface HeroSlide {
   id: number
@@ -150,13 +151,18 @@ onUnmounted(() => {
       :class="currentSlide === idx ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'"
     >
       <!-- Background Image with elegant scale effect -->
-      <div
-        class="absolute inset-0 bg-cover bg-center transition-transform duration-10000 ease-out"
+      <!-- <img> (e não fundo CSS): a 1ª foto carrega com prioridade e o celular baixa o tamanho certo -->
+      <img
+        :src="responsiveImage(slide.image).src"
+        :srcset="responsiveImage(slide.image).srcset"
+        sizes="100vw"
+        :alt="slide.title.replace(/<[^>]*>/g, ' ')"
+        :loading="idx === 0 ? 'eager' : 'lazy'"
+        :fetchpriority="idx === 0 ? 'high' : 'low'"
+        decoding="async"
+        class="absolute inset-0 w-full h-full object-cover transition-transform duration-10000 ease-out"
         :class="currentSlide === idx ? 'scale-100' : 'scale-105'"
-        :style="{ backgroundImage: `url('${slide.image}')` }"
-        role="img"
-        :aria-label="slide.title"
-      ></div>
+      >
 
       <!-- Overlay -->
       <div class="absolute inset-0 bg-black/20 lg:bg-black/25"></div>
@@ -173,14 +179,14 @@ onUnmounted(() => {
             v-html="slide.title"
           ></h1>
           <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <a
-              href="#"
+            <NuxtLink
+              to="/busca"
               class="inline-block bg-primary px-10 xl:px-14 3xl:px-16 py-4 xl:py-5 3xl:py-6 font-label-caps text-label-caps xl:text-[13px] 3xl:text-[15px] text-pure-white transition-all duration-300 hover:bg-deep-onyx hover:tracking-widest active:scale-95 shadow-md"
             >
               {{ slide.btn1 }}
-            </a>
+            </NuxtLink>
             <a
-              href="#"
+              href="#sobre"
               class="border border-pure-white/60 px-10 xl:px-14 3xl:px-16 py-4 xl:py-5 3xl:py-6 font-label-caps text-label-caps xl:text-[13px] 3xl:text-[15px] text-pure-white transition-all duration-300 hover:border-pure-white hover:bg-white/10 active:scale-95"
             >
               {{ slide.btn2 }}

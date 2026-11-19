@@ -8,6 +8,12 @@ body {
 }
 
 .material-symbols-outlined {
+  /* reserva o espaço do ícone enquanto a fonte carrega (evita palavras como "shopping_bag" aparecendo) */
+  display: inline-block;
+  width: 1em;
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 1;
   font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
 }
 
@@ -39,4 +45,11 @@ body {
 .overlay.active {
   opacity: 1;
   pointer-events: auto;
+}
+
+@layer utilities {
+  /* espaço para o menu inferior do celular + barra do iPhone */
+  .pb-safe-nav {
+    padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+  }
 }

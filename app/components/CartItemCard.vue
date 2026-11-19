@@ -16,7 +16,7 @@ const formatCurrency = (val: number) => {
     <!-- List of Cart Items -->
     <div 
       v-for="item in items" 
-      :key="item.product.name"
+      :key="item.product.id"
       class="bg-white rounded-lg border border-soft-stone p-6 space-y-6 card-shadow"
     >
       <!-- Product Row -->
@@ -45,7 +45,7 @@ const formatCurrency = (val: number) => {
           <!-- Delete Button -->
           <button 
             class="text-on-surface-variant hover:text-error transition-colors p-2 -ml-2 active:scale-90 flex items-center justify-center"
-            @click="deleteItem(item.product.name)"
+            @click="deleteItem(item.product.id)"
             aria-label="Remover item"
           >
             <span class="material-symbols-outlined text-2xl">delete</span>
@@ -55,7 +55,7 @@ const formatCurrency = (val: number) => {
           <div class="flex items-center border border-soft-stone rounded overflow-hidden bg-surface-container-lowest">
             <button 
               class="px-4 py-2 hover:bg-surface-container transition-colors border-r border-soft-stone active:scale-95 duration-100 flex items-center justify-center"
-              @click="decrement(item.product.name)"
+              @click="decrement(item.product.id)"
               aria-label="Diminuir quantidade"
             >
               <span class="material-symbols-outlined text-sm font-bold">remove</span>
@@ -63,7 +63,7 @@ const formatCurrency = (val: number) => {
             <span class="px-6 py-2 font-body-md w-12 text-center select-none font-semibold">{{ item.quantity }}</span>
             <button 
               class="px-4 py-2 hover:bg-surface-container transition-colors border-l border-soft-stone active:scale-95 duration-100 flex items-center justify-center"
-              @click="increment(item.product.name)"
+              @click="increment(item.product.id)"
               aria-label="Aumentar quantidade"
             >
               <span class="material-symbols-outlined text-sm font-bold">add</span>

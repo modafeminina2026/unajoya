@@ -119,7 +119,7 @@ export interface OrderStatusOption {
   color: string
 }
 
-export type AdminTab = 'products' | 'categories' | 'about' | 'carousel' | 'lookbook' | 'orders'
+export type AdminTab = 'dashboard' | 'sales' | 'expenses' | 'contacts' | 'import' | 'products' | 'categories' | 'about' | 'carousel' | 'lookbook' | 'orders'
 
 export interface SupabaseProductRow {
   id: number

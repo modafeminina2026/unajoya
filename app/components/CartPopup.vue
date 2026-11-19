@@ -36,7 +36,7 @@ const closePopup = () => {
 
           <!-- Headline -->
           <h3 class="font-display-lg text-lg md:text-xl text-primary tracking-[0.15em] font-bold uppercase mb-6 leading-tight">
-            PRODUTO ADICIONADO AO CARRINHO!
+            PRODUTO ADICIONADO À SACOLA!
           </h3>
 
           <!-- Divider -->
@@ -53,7 +53,7 @@ const closePopup = () => {
               class="w-full py-4 bg-primary text-pure-white font-label-caps text-xs md:text-sm tracking-[0.2em] font-bold uppercase transition-colors hover:bg-deep-onyx active:scale-[0.98] duration-150"
               @click="closePopup"
             >
-              CONTINUAR COMPRANDO
+              CONTINUAR ESCOLHENDO
             </button>
             
             <NuxtLink 
@@ -61,7 +61,7 @@ const closePopup = () => {
               class="w-full py-4 bg-[#202223] text-pure-white font-label-caps text-xs md:text-sm tracking-[0.2em] font-bold uppercase transition-colors hover:bg-neutral-800 active:scale-[0.98] duration-150 text-center block"
               @click="closePopup"
             >
-              IR PARA O CARRINHO
+              VER SACOLA E FINALIZAR
             </NuxtLink>
           </div>
         </div>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useImageModal } from '~/composables/useImageModal'
 import { useCart } from '~/composables/useCart'
+import { responsiveImage, productPath } from '~/utils/catalog'
 
 const { isOpen, images, currentIndex, title, currentProduct, close, next, prev, setIndex } = useImageModal()
 const { addToCart } = useCart()
@@ -89,9 +90,16 @@ const onKeyDown = (e: KeyboardEvent) => {
   }
 }
 
+const soldOut = computed(() => typeof currentProduct.value?.available === 'number' && currentProduct.value.available <= 0)
+const detailsPath = computed(() => (currentProduct.value?.id ? productPath(currentProduct.value) : ''))
+const big = (url: string) => responsiveImage(url)
+const thumb = (url: string) => { const r = responsiveImage(url); return r.srcset ? r.src.replace(/-800\.webp$/, '-400.webp') : r.src }
+
 const handleBuyFromModal = () => {
-  if (currentProduct.value) {
+  if (soldOut.value) return
+  if (currentProduct.value && Number.isFinite(Number(currentProduct.value.id))) {
     addToCart({
+      id: Number(currentProduct.value.id),
       name: currentProduct.value.name,
       price: currentProduct.value.price,
       image: images.value[0] || currentProduct.value.image
@@ -190,7 +198,9 @@ watch(isOpen, (openVal) => {
             <Transition name="slide-image" mode="out-in">
               <img
                 :key="currentIndex"
-                :src="images[currentIndex]"
+                :src="big(images[currentIndex] || '').src"
+                :srcset="big(images[currentIndex] || '').srcset"
+                sizes="90vw"
                 :alt="`${title || 'Joia Una Joya'} - Foto ${currentIndex + 1}`"
                 class="max-w-full max-h-[70vh] sm:max-h-[74vh] object-contain rounded-sm shadow-2xl transition-transform duration-300 pointer-events-auto"
                 :class="isZoomed ? 'scale-150 sm:scale-175' : 'scale-100'"
@@ -241,7 +251,7 @@ watch(isOpen, (openVal) => {
               @click.stop="setIndex(idx)"
             >
               <img
-                :src="img"
+                :src="thumb(img)"
                 :alt="`Miniatura ${idx + 1}`"
                 class="w-full h-full object-cover"
                 loading="lazy"
@@ -250,15 +260,25 @@ watch(isOpen, (openVal) => {
           </div>
 
           <!-- CTA Button if product is passed -->
-          <div v-if="currentProduct" class="flex items-center gap-4 w-full sm:w-auto justify-center">
+          <div v-if="currentProduct" class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto justify-center">
+            <p v-if="soldOut" class="text-pure-white/80 font-label-caps text-xs tracking-widest">ESGOTADO NO MOMENTO</p>
             <button
+              v-else
               type="button"
               class="w-full sm:w-auto px-8 py-3.5 bg-champagne-gold text-primary font-label-caps text-xs sm:text-sm tracking-widest uppercase font-bold hover:bg-pure-white hover:text-primary transition-all duration-300 rounded-xs shadow-xl active:scale-95 flex items-center justify-center gap-2"
               @click="handleBuyFromModal"
             >
               <span class="material-symbols-outlined text-lg">shopping_bag</span>
-              <span>COMPRAR ESTA JOIA</span>
+              <span>ADICIONAR À SACOLA</span>
             </button>
+            <NuxtLink
+              v-if="detailsPath"
+              :to="detailsPath"
+              class="w-full sm:w-auto px-6 py-3.5 border border-white/40 text-pure-white font-label-caps text-xs sm:text-sm tracking-widest uppercase hover:border-champagne-gold hover:text-champagne-gold transition-colors flex items-center justify-center"
+              @click="close"
+            >
+              Ver detalhes
+            </NuxtLink>
           </div>
         </footer>
       </div>

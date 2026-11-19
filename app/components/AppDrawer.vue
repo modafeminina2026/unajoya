@@ -17,9 +17,7 @@ const fetchCategories = async () => {
     
     if (error) throw error
     
-    const items = [
-      { label: 'MEUS PEDIDOS', path: '/meu-pedido', hasSubmenu: false, isOpen: false, subcategories: [] }
-    ]
+    const items: any[] = []
     
     if (data) {
       data.forEach(cat => {

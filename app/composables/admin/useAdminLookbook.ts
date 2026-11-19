@@ -1,6 +1,7 @@
 ﻿import { ref, computed } from 'vue'
 import type { LookbookPhoto, LookbookFormState } from '~/types/admin'
 import { getErrorMessage } from '~/types/admin'
+import { getAdminAuthHeaders } from '~/composables/admin/adminUploadHeaders'
 
 export const useAdminLookbook = (mockImageFallback: string) => {
   const { client } = useSupabase()
@@ -46,7 +47,8 @@ export const useAdminLookbook = (mockImageFallback: string) => {
     try {
       const response = await $fetch<{ success: boolean; url: string }>('/api/upload', {
         method: 'POST',
-        body: formData
+        body: formData,
+        headers: await getAdminAuthHeaders()
       })
       if (response.success && response.url) {
         lookbookForm.value.image = response.url

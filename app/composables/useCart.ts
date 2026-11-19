@@ -1,4 +1,5 @@
 export interface CartProduct {
+  id: number
   name: string
   price: number
   image: string
@@ -9,7 +10,8 @@ export interface CartItem {
   quantity: number
 }
 
-const CART_STORAGE_KEY = 'unajoya-cart'
+// v2: itens agora são identificados por id (carrinhos antigos, só com nome, são ignorados)
+const CART_STORAGE_KEY = 'unajoya-cart-v2'
 
 // Helpers para persistência no localStorage
 const loadCartFromStorage = (): CartItem[] | null => {
@@ -17,7 +19,8 @@ const loadCartFromStorage = (): CartItem[] | null => {
   try {
     const stored = localStorage.getItem(CART_STORAGE_KEY)
     if (stored) {
-      return JSON.parse(stored) as CartItem[]
+      const parsed = JSON.parse(stored) as CartItem[]
+      return Array.isArray(parsed) ? parsed.filter(i => i?.product && typeof i.product.id === 'number' && i.quantity > 0) : null
     }
   } catch (e) {
     console.warn('Erro ao ler carrinho do localStorage:', e)
@@ -81,22 +84,24 @@ export const useCart = () => {
     return items.value.reduce((sum, item) => sum + item.quantity, 0)
   })
 
-  const increment = (productName: string) => {
-    const item = items.value.find(i => i.product.name === productName)
-    if (item) {
+  const MAX_QUANTITY_PER_ITEM = 99
+
+  const increment = (productId: number) => {
+    const item = items.value.find(i => i.product.id === productId)
+    if (item && item.quantity < MAX_QUANTITY_PER_ITEM) {
       item.quantity++
     }
   }
 
-  const decrement = (productName: string) => {
-    const item = items.value.find(i => i.product.name === productName)
+  const decrement = (productId: number) => {
+    const item = items.value.find(i => i.product.id === productId)
     if (item && item.quantity > 1) {
       item.quantity--
     }
   }
 
-  const deleteItem = (productName: string) => {
-    items.value = items.value.filter(i => i.product.name !== productName)
+  const deleteItem = (productId: number) => {
+    items.value = items.value.filter(i => i.product.id !== productId)
   }
 
   // clearCart: esvazia completamente (usado após pagamento)
@@ -114,9 +119,9 @@ export const useCart = () => {
   }
 
   const addToCart = (newProduct: CartProduct) => {
-    const existingItem = items.value.find(i => i.product.name === newProduct.name)
+    const existingItem = items.value.find(i => i.product.id === newProduct.id)
     if (existingItem) {
-      existingItem.quantity++
+      if (existingItem.quantity < MAX_QUANTITY_PER_ITEM) existingItem.quantity++
     } else {
       items.value.push({ product: { ...newProduct }, quantity: 1 })
     }

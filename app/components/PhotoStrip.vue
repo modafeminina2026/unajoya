@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { responsiveImage } from '~/utils/catalog'
 import { ref, onMounted } from 'vue'
 
 interface LookbookPhoto {
@@ -130,7 +131,7 @@ onMounted(() => {
           :aria-label="`Ver foto ampliada: ${photo.alt}`"
         >
           <img
-            :src="photo.image"
+            :src="responsiveImage(photo.image).srcset ? responsiveImage(photo.image).src.replace(/-800\.webp$/, '-400.webp') : photo.image"
             :alt="photo.alt"
             class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"

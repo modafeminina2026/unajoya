@@ -1,23 +1,17 @@
 /**
- * UNA JOYA - Middleware de Servidor para Bloqueio de Rota Administrativa
+ * UNA JOYA - Cabeçalhos de proteção da rota do painel administrativo
  *
- * Intercepta no servidor Nitro/H3 requisições à rota administrativa legada,
- * retornando HTTP 404 real com headers no-store e noindex antes que
- * qualquer shell SPA seja gerado ou entregue.
+ * O painel agora exige login (e-mail + senha de uma conta ativa em admin_profiles).
+ * Este middleware não bloqueia mais a rota; só impede indexação e cache da página.
  */
-import { defineEventHandler, getRequestURL, setResponseStatus, setResponseHeaders } from 'h3'
+import { defineEventHandler, getRequestURL, setResponseHeaders } from 'h3'
 
 export default defineEventHandler((event) => {
-  const url = getRequestURL(event)
-  // Normaliza barras finais preservando o pathname exato sem query parameters
-  const pathname = url.pathname.replace(/\/+$/, '') || '/'
-
-  if (pathname === '/painel-exclusivo-unajoya') {
-    setResponseStatus(event, 404, 'Página não encontrada')
+  const pathname = getRequestURL(event).pathname.replace(/\/+$/, '') || '/'
+  if (pathname === '/painel-exclusivo-unajoya' || pathname.startsWith('/painel-exclusivo-unajoya/')) {
     setResponseHeaders(event, {
       'X-Robots-Tag': 'noindex, nofollow, noarchive',
       'Cache-Control': 'no-store'
     })
-    return 'Página não encontrada'
   }
 })

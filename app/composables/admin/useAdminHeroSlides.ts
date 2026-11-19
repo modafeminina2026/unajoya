@@ -1,6 +1,7 @@
 ﻿import { ref, computed } from 'vue'
 import type { HeroSlide, HeroSlideFormState } from '~/types/admin'
 import { getErrorMessage } from '~/types/admin'
+import { getAdminAuthHeaders } from '~/composables/admin/adminUploadHeaders'
 
 export const useAdminHeroSlides = (mockImageFallback: string) => {
   const { client } = useSupabase()
@@ -57,7 +58,8 @@ export const useAdminHeroSlides = (mockImageFallback: string) => {
     try {
       const response = await $fetch<{ success: boolean; url: string }>('/api/upload', {
         method: 'POST',
-        body: formData
+        body: formData,
+        headers: await getAdminAuthHeaders()
       })
       if (response.success && response.url) {
         slideForm.value.image = response.url

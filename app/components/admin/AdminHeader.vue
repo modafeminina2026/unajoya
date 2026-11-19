@@ -25,7 +25,37 @@ const emit = defineEmits<{
 
 <template>
   <div class="mb-12 flex flex-col lg:flex-row lg:items-end justify-between gap-6 fade-in">
-    <div v-if="currentTab === 'products'">
+    <div v-if="currentTab === 'dashboard'">
+      <h2 class="font-display-lg text-3xl md:text-4xl text-primary mb-2 italic">Visão Geral</h2>
+      <p class="text-on-surface-variant font-body-md max-w-xl text-secondary">
+        Receita, gastos e resultado do período escolhido, comparados com o período anterior.
+      </p>
+    </div>
+    <div v-else-if="currentTab === 'sales'">
+      <h2 class="font-display-lg text-3xl md:text-4xl text-primary mb-2 italic">Vendas</h2>
+      <p class="text-on-surface-variant font-body-md max-w-xl text-secondary">
+        Registre vendas feitas pelo WhatsApp, presencialmente ou em qualquer lugar fora da loja. Tudo entra nos dashboards.
+      </p>
+    </div>
+    <div v-else-if="currentTab === 'contacts'">
+      <h2 class="font-display-lg text-3xl md:text-4xl text-primary mb-2 italic">Contatos do WhatsApp</h2>
+      <p class="text-on-surface-variant font-body-md max-w-xl text-secondary">
+        Pedidos enviados pelo site para o WhatsApp. Acompanhe a conversa e transforme em venda.
+      </p>
+    </div>
+    <div v-else-if="currentTab === 'expenses'">
+      <h2 class="font-display-lg text-3xl md:text-4xl text-primary mb-2 italic">Gastos</h2>
+      <p class="text-on-surface-variant font-body-md max-w-xl text-secondary">
+        Anote matéria-prima, embalagens, fretes, anúncios e contas para ver o resultado real do mês.
+      </p>
+    </div>
+    <div v-else-if="currentTab === 'import'">
+      <h2 class="font-display-lg text-3xl md:text-4xl text-primary mb-2 italic">Importar Planilha</h2>
+      <p class="text-on-surface-variant font-body-md max-w-xl text-secondary">
+        Traga o histórico do Excel para dentro do painel.
+      </p>
+    </div>
+    <div v-else-if="currentTab === 'products'">
       <h2 class="font-display-lg text-3xl md:text-4xl text-primary mb-2 italic">Gerenciamento do Catálogo</h2>
       <p class="text-on-surface-variant font-body-md max-w-xl text-secondary">
         Curadoria da experiência 'Una Joya'. Adicione novas peças artesanais exclusivas e gerencie seu tempo de exibição na vitrine pública.

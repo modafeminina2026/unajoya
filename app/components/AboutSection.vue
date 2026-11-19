@@ -36,7 +36,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="py-16 lg:py-0 bg-surface-container border-b border-soft-stone overflow-hidden">
+  <section id="sobre" class="scroll-mt-20 lg:scroll-mt-32 py-16 lg:py-0 bg-surface-container border-b border-soft-stone overflow-hidden">
     <!-- Mobile layout: stacked -->
     <div class="lg:hidden">
       <div class="w-full aspect-[4/5] overflow-hidden shadow-sm">

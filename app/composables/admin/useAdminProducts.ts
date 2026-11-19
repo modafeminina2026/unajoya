@@ -79,19 +79,31 @@ export const useAdminProducts = () => {
 
     try {
       if (isEditing.value) {
+        // O estoque é protegido no banco: não pode ser alterado por UPDATE direto.
+        // Os demais campos vão no update; o estoque passa pela função admin_set_product_stock.
+        const { stock: newStock, ...updatePayload } = payload
         const { error } = await client
           .from('products')
-          .update(payload)
+          .update(updatePayload)
           .eq('id', form.value.id)
 
         if (error) {
           if (error.message?.includes('images') || error.code === 'PGRST204') {
-            delete payload.images
-            const { error: err2 } = await client.from('products').update(payload).eq('id', form.value.id)
+            delete updatePayload.images
+            const { error: err2 } = await client.from('products').update(updatePayload).eq('id', form.value.id)
             if (err2) throw err2
           } else {
             throw error
           }
+        }
+
+        const previous = products.value.find(p => p.id === form.value.id)
+        if (!previous || Number(previous.stock) !== Number(newStock)) {
+          const { error: stockError } = await client.rpc('admin_set_product_stock', {
+            p_product_id: form.value.id,
+            p_new_stock: Number(newStock)
+          })
+          if (stockError) throw stockError
         }
       } else {
         const { error } = await client

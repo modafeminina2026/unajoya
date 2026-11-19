@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import type { AdminProduct, AdminTab } from '~/types/admin'
 
 import AdminSidebar from '~/components/admin/AdminSidebar.vue'
@@ -10,6 +10,14 @@ import AdminHeroSection from '~/components/admin/hero/AdminHeroSection.vue'
 import AdminLookbookSection from '~/components/admin/lookbook/AdminLookbookSection.vue'
 import AdminAboutSection from '~/components/admin/about/AdminAboutSection.vue'
 import AdminOrdersSection from '~/components/admin/orders/AdminOrdersSection.vue'
+import AdminLogin from '~/components/admin/auth/AdminLogin.vue'
+import AdminDashboardSection from '~/components/admin/finance/AdminDashboardSection.vue'
+import AdminSalesSection from '~/components/admin/finance/AdminSalesSection.vue'
+import AdminExpensesSection from '~/components/admin/finance/AdminExpensesSection.vue'
+import AdminContactsSection from '~/components/admin/finance/AdminContactsSection.vue'
+import AdminImportSection from '~/components/admin/finance/AdminImportSection.vue'
+import AdminQuickAdd from '~/components/admin/finance/AdminQuickAdd.vue'
+import AdminMobileNav from '~/components/admin/AdminMobileNav.vue'
 
 import { useAdminCategories } from '~/composables/admin/useAdminCategories'
 import { useAdminProducts } from '~/composables/admin/useAdminProducts'
@@ -19,6 +27,9 @@ import { useAdminLookbook } from '~/composables/admin/useAdminLookbook'
 import { useAdminAbout } from '~/composables/admin/useAdminAbout'
 import { useAdminOrders } from '~/composables/admin/useAdminOrders'
 import { useImageModal } from '~/composables/useImageModal'
+import { useAdminAuth } from '~/composables/admin/useAdminAuth'
+import { useAdminFinance } from '~/composables/admin/useAdminFinance'
+import type { CatalogOption } from '~/utils/finance'
 
 definePageMeta({
   title: 'UNA JOYA - Painel Administrativo'
@@ -26,7 +37,7 @@ definePageMeta({
 
 const mockImageFallback: string = mockImages[0] ?? ''
 
-const currentTab = ref<AdminTab>('products')
+const currentTab = ref<AdminTab>('dashboard')
 const isSidebarOpen = ref(false)
 
 const { open: openImageModal } = useImageModal()
@@ -124,27 +135,110 @@ const {
   orderTotalItems
 } = useAdminOrders()
 
-onMounted(() => {
+// Autenticação: o painel só carrega dados depois do login de uma conta admin ativa
+const {
+  session,
+  isAdmin,
+  checking: checkingAuth,
+  recovery: passwordRecovery,
+  init: initAuth,
+  signIn,
+  signOut,
+  sendReset,
+  updatePassword
+} = useAdminAuth()
+
+// Financeiro: vendas, gastos, contatos do WhatsApp e importação
+const {
+  sales,
+  expenses,
+  expenseCategories,
+  whatsappOrders,
+  goals,
+  saveGoal,
+  loading: loadingFinance,
+  lastError: financeError,
+  fetchAll: fetchFinance,
+  saveSale,
+  deleteSale,
+  saveExpense,
+  deleteExpense,
+  addExpenseCategory,
+  setExpenseCategoryActive,
+  updateWhatsAppOrder,
+  deleteWhatsAppOrder,
+  importRows,
+  undoImport
+} = useAdminFinance()
+
+const catalog = computed<CatalogOption[]>(() => products.value.map(p => ({
+  id: p.id,
+  name: p.name,
+  price: Number(p.price) || 0,
+  stock: Number(p.stock) || 0,
+  available: (Number(p.stock) || 0) > 0
+})))
+const newContactsCount = computed(() => whatsappOrders.value.filter(o => o.status === 'novo').length)
+
+const isQuickAddOpen = ref(false)
+const saleFromOrderId = ref<number | null>(null)
+const handleRegisterSaleFromContact = (orderId: number) => {
+  saleFromOrderId.value = orderId
+  currentTab.value = 'sales'
+}
+
+let loaded = false
+const loadAll = () => {
+  if (loaded) return
+  loaded = true
   fetchProducts()
   fetchHeroSlides()
   fetchLookbook()
   fetchOrders()
   fetchCategories()
   fetchAboutAdmin()
+  fetchFinance()
+}
+
+watch(isAdmin, (ok) => {
+  if (ok) loadAll()
+  else loaded = false
+})
+
+const handleSignOut = async () => {
+  await signOut()
+  currentTab.value = 'dashboard'
+}
+
+onMounted(async () => {
+  if (isAdmin.value) loadAll()
+  await initAuth()
+  if (isAdmin.value) loadAll()
 })
 </script>
 
 <template>
-  <div class="admin-panel bg-surface font-body-md text-on-surface overflow-x-hidden min-h-screen">
+  <AdminLogin
+    v-if="!isAdmin || passwordRecovery"
+    :checking="checkingAuth"
+    :recovery="passwordRecovery"
+    :sign-in="signIn"
+    :send-reset="sendReset"
+    :update-password="updatePassword"
+  />
+  <div v-else class="admin-panel bg-surface font-body-md text-on-surface overflow-x-hidden min-h-screen">
     <AdminSidebar
       v-model:current-tab="currentTab"
       v-model:is-sidebar-open="isSidebarOpen"
       :pending-orders-count="pendingOrdersCount"
+      :new-contacts-count="newContactsCount"
+      :user-email="session?.user?.email ?? null"
+      @sign-out="handleSignOut"
     />
 
     <div class="flex min-h-screen pt-16 md:pt-0">
       <!-- Main Content Canvas -->
-      <main class="flex-1 min-w-0 md:ml-72 p-margin-mobile md:p-16">
+      <main class="flex-1 min-w-0 md:ml-72 p-margin-mobile pb-28 md:p-16">
         <!-- Header Section -->
         <AdminHeader
           :current-tab="currentTab"
@@ -165,8 +259,58 @@ onMounted(() => {
         />
 
         <!-- Tab Contents -->
+        <AdminDashboardSection
+          v-if="currentTab === 'dashboard'"
+          :sales="sales"
+          :expenses="expenses"
+          :whatsapp-orders="whatsappOrders"
+          :loading="loadingFinance"
+          :error="financeError"
+          :goals="goals"
+          :save-goal="saveGoal"
+          @open-contacts="currentTab = 'contacts'"
+        />
+
+        <AdminSalesSection
+          v-else-if="currentTab === 'sales'"
+          :sales="sales"
+          :catalog="catalog"
+          :whatsapp-orders="whatsappOrders"
+          :prefill-order-id="saleFromOrderId"
+          :save="saveSale"
+          :remove="deleteSale"
+          @prefill-consumed="saleFromOrderId = null"
+        />
+
+        <AdminContactsSection
+          v-else-if="currentTab === 'contacts'"
+          :orders="whatsappOrders"
+          :sales="sales"
+          :update="updateWhatsAppOrder"
+          :remove="deleteWhatsAppOrder"
+          @register-sale="handleRegisterSaleFromContact"
+        />
+
+        <AdminExpensesSection
+          v-else-if="currentTab === 'expenses'"
+          :expenses="expenses"
+          :categories="expenseCategories"
+          :save="saveExpense"
+          :remove="deleteExpense"
+          :add-category="addExpenseCategory"
+          :set-category-active="setExpenseCategoryActive"
+        />
+
+        <AdminImportSection
+          v-else-if="currentTab === 'import'"
+          :categories="expenseCategories"
+          :import-rows="importRows"
+          :undo-import="undoImport"
+          :add-category="addExpenseCategory"
+        />
+
         <AdminProductsSection
-          v-if="currentTab === 'products'"
+          v-else-if="currentTab === 'products'"
           :products="products"
           :categories="categories"
           :form="productForm"
@@ -247,6 +391,27 @@ onMounted(() => {
         />
       </main>
     </div>
+
+    <!-- Celular: barra de abas + botão "+" para registrar venda/gasto de qualquer tela -->
+    <AdminMobileNav
+      v-model:current-tab="currentTab"
+      :new-contacts-count="newContactsCount"
+      @quick-add="isQuickAddOpen = true"
+      @more="isSidebarOpen = true"
+    />
+    <AdminQuickAdd
+      :open="isQuickAddOpen"
+      :catalog="catalog"
+      :whatsapp-orders="whatsappOrders"
+      :sales="sales"
+      :expenses="expenses"
+      :categories="expenseCategories"
+      :save-sale="saveSale"
+      :save-expense="saveExpense"
+      :add-category="addExpenseCategory"
+      :set-category-active="setExpenseCategoryActive"
+      @close="isQuickAddOpen = false"
+    />
   </div>
 </template>
 

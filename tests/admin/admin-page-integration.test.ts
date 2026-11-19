@@ -174,6 +174,47 @@ vi.mock('../../app/composables/admin/useAdminOrders', () => ({
   })
 }))
 
+// Sessão de admin já autenticada (o login real é testado em admin-auth.test.ts)
+vi.mock('../../app/composables/admin/useAdminAuth', () => ({
+  useAdminAuth: () => ({
+    session: ref({ user: { email: 'admin@unajoya.com' } }),
+    isAdmin: ref(true),
+    checking: ref(false),
+    recovery: ref(false),
+    init: vi.fn().mockResolvedValue(undefined),
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+    sendReset: vi.fn(),
+    updatePassword: vi.fn()
+  })
+}))
+
+const mockFetchFinance = vi.fn()
+vi.mock('../../app/composables/admin/useAdminFinance', () => ({
+  useAdminFinance: () => ({
+    sales: ref([]),
+    expenses: ref([]),
+    expenseCategories: ref([]),
+    activeExpenseCategories: ref([]),
+    whatsappOrders: ref([]),
+    goals: ref({}),
+    saveGoal: vi.fn(),
+    loading: ref(false),
+    lastError: ref(''),
+    fetchAll: mockFetchFinance,
+    saveSale: vi.fn(),
+    deleteSale: vi.fn(),
+    saveExpense: vi.fn(),
+    deleteExpense: vi.fn(),
+    addExpenseCategory: vi.fn(),
+    setExpenseCategoryActive: vi.fn(),
+    updateWhatsAppOrder: vi.fn(),
+    deleteWhatsAppOrder: vi.fn(),
+    importRows: vi.fn(),
+    undoImport: vi.fn()
+  })
+}))
+
 // Importação da página administrativa real e componentes relacionados
 import AdminPage from '../../app/pages/painel-exclusivo-unajoya.vue'
 import AdminSidebar from '../../app/components/admin/AdminSidebar.vue'
@@ -215,6 +256,7 @@ describe('AdminPage Integration - Teste Real de Integração e Orquestração da
     expect(mockFetchOrders).toHaveBeenCalledTimes(1)
     expect(mockFetchCategories).toHaveBeenCalledTimes(1)
     expect(mockFetchAboutAdmin).toHaveBeenCalledTimes(1)
+    expect(mockFetchFinance).toHaveBeenCalledTimes(1)
   })
 
   it('2. Alterna realmente entre as 6 seções administrativas via AdminSidebar', async () => {
@@ -236,7 +278,10 @@ describe('AdminPage Integration - Teste Real de Integração e Orquestração da
     const sidebar = wrapper.findComponent(AdminSidebar)
     expect(sidebar.exists()).toBe(true)
 
-    // 1. Inicialmente em 'products'
+    // 1. Abre no dashboard; troca para 'products'
+    expect(wrapper.find('#sec-products').exists()).toBe(false)
+    sidebar.vm.$emit('update:currentTab', 'products' as AdminTab)
+    await wrapper.vm.$nextTick()
     expect(wrapper.find('#sec-products').exists()).toBe(true)
     expect(wrapper.find('#sec-categories').exists()).toBe(false)
 
@@ -283,6 +328,9 @@ describe('AdminPage Integration - Teste Real de Integração e Orquestração da
         }
       }
     })
+
+    wrapper.findComponent(AdminSidebar).vm.$emit('update:currentTab', 'products' as AdminTab)
+    await wrapper.vm.$nextTick()
 
     // 1. Localiza a miniatura real renderizada pelo AdminProductsList
     const thumbnail = wrapper.find('[data-testid="product-thumbnail"]')

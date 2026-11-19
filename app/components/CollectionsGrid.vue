@@ -41,19 +41,20 @@ const collections: Collection[] = [
       <div class="w-12 lg:w-16 h-[2px] bg-primary"></div>
     </div>
     
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-[1px] bg-soft-stone">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-[1px] bg-soft-stone">
       <NuxtLink 
         v-for="collection in collections" 
         :key="collection.name"
         :to="collection.link"
-        class="relative aspect-square lg:aspect-[3/4] group overflow-hidden bg-surface block"
+        class="relative aspect-square md:aspect-[3/4] group overflow-hidden bg-surface block"
       >
-        <div 
-          class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" 
-          :style="{ backgroundImage: `url('${collection.image}')` }"
-          role="img"
-          :aria-label="collection.alt"
-        ></div>
+        <img
+          :src="collection.image"
+          :alt="collection.alt"
+          loading="lazy"
+          decoding="async"
+          class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+        >
         <!-- overlay for readability -->
         <div class="absolute inset-0 bg-black/10 transition-opacity duration-300 group-hover:bg-black/25"></div>
         <div class="absolute inset-0 flex items-end justify-center pb-6 lg:pb-8 3xl:pb-12">
